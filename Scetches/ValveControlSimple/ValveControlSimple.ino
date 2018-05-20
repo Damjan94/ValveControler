@@ -4,8 +4,8 @@
 
 Valve valves[50];
 DS3231_Simple myClock;
-const int H_BRIDGE_PIN = 4;
-const int BLUETOOTH_INTERRUPT_PIN = 3;
+const int8_t H_BRIDGE_PIN[] = {3, 4};
+const int BLUETOOTH_INTERRUPT_PIN = 13;
 const int ALARM_INTERRUPT_PIN = 2;
 
 const uint8_t SEND_VALVE = 0x1c;
@@ -17,6 +17,8 @@ const uint8_t RECEIVE_TIME = 0x2a;
 const uint8_t SEND_TEMP_FLOAT = 0x1b;
 const uint8_t SEND_TEMP = 0x2b;
 
+const uint8_t SEND_HBRIDGE_PIN = 0x1d;
+
 uint8_t valveCount;
 
 String dateToString(const DateTime& dt);
@@ -27,14 +29,12 @@ void setup()
     
     myClock.begin();
     
-    pinMode(H_BRIDGE_PIN, OUTPUT);
-    digitalWrite(H_BRIDGE_PIN, HIGH);
-    
     pinMode(BLUETOOTH_INTERRUPT_PIN, INPUT);
     pinMode(ALARM_INTERRUPT_PIN, INPUT);
 
+    //valve::setHbridgePin sets the pinmode of hbridge to output
     Valve::setHBridgePin(H_BRIDGE_PIN);
-
+    Valve::switchHBridge(HIGH);
     valveCount = 0;
 }
 
@@ -60,31 +60,24 @@ void loop()
       }
       case RECEIVE_VALVE:
       {    
-        uint8_t newValveCount = Serial.read();//TODO check to see if the valves will fit in to the array
-        if(newValveCount > (sizeof(valves)/sizeof(*valves)))
+        uint8_t newValveCount = Serial.read();
+        if(newValveCount > (sizeof(valves)/sizeof(Valve)))
         {
           //Serial.write(Message::TOO_MANY_VALVES);
           break;
         }
         //close the valves
-        const int MAX_VALVES = 8;
-        bool valveTurnedOff[MAX_VALVES];
-        for(int i = 0; i < MAX_VALVES; ++i)
-        {
-            valveTurnedOff[i] = false;
-        }
-        
+        //before assigning the new valve count
         for(size_t i = 0; i < valveCount; ++i)
         {
-            if(!valveTurnedOff[valves[i].getValveNumber()])
+            //turns off a valve only if the valve is currently on
+            if(valves[i].isOn())//TODO tweak this, so it turns off every pin that a valve can be connected to
             {
                 valves[i].turnOff();
-                valveTurnedOff[valves[i].getValveNumber()] = true;
+
                 delay(10);
             }
-            
         }
-        //before assigning the new valve count
         valveCount = newValveCount;
         for(size_t i = 0; i < valveCount; ++i)
         {
@@ -138,6 +131,13 @@ void loop()
         Serial.write(temp);
         break;
       }
+      case SEND_HBRIDGE_PIN:
+      {
+        int8_t* hbridgePin = Valve::getHBridgePin();
+        Serial.write(hbridgePin[0]);
+        Serial.write(hbridgePin[1]);
+        break;
+      }
     }
     
     const DateTime& dt = myClock.read();
@@ -154,6 +154,12 @@ void loop()
       }
     }
 
+    
+    if(Valve::getHBridgeState() != HIGH)
+    {
+        Valve::switchHBridge(HIGH);
+    }
+    
     delay(1000);
 }
 
