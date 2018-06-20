@@ -36,13 +36,16 @@ private:
 
     void switchValve(int newHbridgeState);
     static bool isValvePinValid(int8_t pinNumber);
+    
+    int checkTurnOnTime(const DateTime& dt) const;
+    int checkTurnOffTime(const DateTime& dt) const;
 public:
     const static int VALVE_NETWORK_SIZE = 6;//sizeof(Valve::data); << cant do that coz of padding
     Valve(); 
     Valve(Valve::data data);
     Valve(int8_t valveNumber, uint8_t hour, uint8_t minute, uint16_t timeCountdown, uint8_t daysOn);
     bool isDayOn(int day) const;
-    void setDayOn(int day, bool value);
+    //void setDayOn(int day, bool value);
     void turnOn(const DateTime& dt);
     void turnOff();
     bool checkTurnOn(const DateTime& dt) const;
@@ -51,6 +54,7 @@ public:
     void toSerial(HardwareSerial& serial) const;
     bool isOn() const;
     int getValveNumber() const;
+    int getActionTime(const DateTime& dt) const;
     
     static void setHBridgePin(const int8_t pinNum[]);
     static bool switchHBridge(int8_t state);
@@ -59,5 +63,10 @@ public:
 #ifdef DEBUG
     String toString();
 #endif //DEBUG
+};
+
+namespace utility
+{
+    void delay(unsigned long ms);
 };
 #endif

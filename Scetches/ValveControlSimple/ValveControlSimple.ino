@@ -24,7 +24,6 @@ uint8_t valveCount;
 String dateToString(const DateTime& dt);
 void setup() 
 {
-  
     Serial.begin(38400);
     
     myClock.begin();
@@ -74,8 +73,7 @@ void loop()
             if(valves[i].isOn())//TODO tweak this, so it turns off every pin that a valve can be connected to
             {
                 valves[i].turnOff();
-
-                delay(10);
+                utility::delay(10);
             }
         }
         valveCount = newValveCount;
@@ -85,7 +83,7 @@ void loop()
           bool isValveInBuffer = true;
           while(Serial.available() < Valve::VALVE_NETWORK_SIZE)
           {
-            delay(100);
+            utility::delay(100);
             ++tryCount;
             if(tryCount > 3)
             {
@@ -93,7 +91,7 @@ void loop()
                 {
                   Serial.read();//purge the stream
                 }
-                isValveInBuffer = false;;
+                isValveInBuffer = false;
             }
           }
           if(!isValveInBuffer)
@@ -160,7 +158,7 @@ void loop()
         Valve::switchHBridge(HIGH);
     }
     
-    delay(1000);
+    utility::delay(1000);
 }
 
 void dateTimeToSerial(const DateTime& dt, HardwareSerial& serial)

@@ -1,5 +1,5 @@
 #include "Valve.h"
-
+#include <limits.h>
 int8_t Valve::hBridgePin[2] = {INVALID_PIN, INVALID_PIN};
 int8_t Valve::hBridgeState = -1;
 bool Valve::isHbridgeSet = false;
@@ -15,10 +15,16 @@ Valve::Valve(Valve::data data) : Valve(data.valveNumber, data.hour, data.minute,
 Valve::Valve(int8_t valveNumber, uint8_t hour, uint8_t minute, uint16_t timeCountdown, uint8_t daysOn):
     m_data{timeCountdown, valveNumber, hour, minute, daysOn}, m_turnedOnTime{-1}
 {
-    if(!isValvePinValid(m_data.valveNumber))
+    if(!isValvePinValid(m_data.valveNumber)
+    //dont want to turn on valves if they dont have any days to be turned on
+    || m_data.daysOn == 0
+    /*
+    this is a special case, and is needed to pervent the program from constantly trying to turn on, and off the valve
+    if the timeCountdown is set to 0;
+    and, of course, we don't want a negative timeCountdown...
+    */
+    || m_data.timeCountdown < 1)
     {
-        //pins less than LOWEST_VALID_PIN_FOR_VALVE are used by arduino for bluetooth
-        //pins grater than HIGHEST_VALID_PIN_FOR_VALVE are used for interrupts, and hbridge
         m_data.valveNumber = INVALID_PIN;
         return;
     }
@@ -34,7 +40,7 @@ bool Valve::isDayOn(int day) const
         }
         return (m_data.daysOn >> day) & 0x1;
 }
-
+/*
 void Valve::setDayOn(int day, bool value)
 {
         if(day < 1 || day > 7)
@@ -44,11 +50,13 @@ void Valve::setDayOn(int day, bool value)
         uint8_t newbit = !!value;    // Also booleanize to force 0 or 1
         m_data.daysOn ^= (-newbit ^ m_data.daysOn) & (0x1 << day);
 } 
-
+*/
 bool Valve::isValvePinValid(int8_t pinNumber)
 {
     return pinNumber >= LOWEST_VALID_PIN_FOR_VALVE && pinNumber <= HIGHEST_VALID_PIN_FOR_VALVE;
 }
+
+
 
 /**
  * @dt current date time to check against
@@ -60,37 +68,8 @@ bool Valve::checkTurnOff(const DateTime& dt) const
     {
         return false;//no need to turn it off, if it is already off
     }
-    int currentMinute = (dt.Dow-1) * MINUTES_IN_DAY + dt.Hour * 60 + dt.Minute;
-    int turnOffMinute = m_turnedOnTime + m_data.timeCountdown;
-    //if current minute = 10 000 and turn off minute is 10 081 % 10 080 = 1, it will turn it off without waiting for the current minute to overflow to 0
-    if(turnOffMinute >= MINUTES_IN_WEEK)
-    {
-        int turnedOnDow = (m_turnedOnTime / MINUTES_IN_DAY) + 1;
-        //in arduino 1439/1440 = 0
-        //1441 / 1440 = 1
-        if( turnedOnDow != dt.Dow && (currentMinute + MINUTES_IN_WEEK) >= turnOffMinute)
-        {
-            return true;
-        }
-    }
-    // on the other hand, if no '%' is used, than it wil never turn it off, since current minute will never be 10 081...
-    if(currentMinute >= turnOffMinute)
-    {
-        return true;
-    }
     
-    return false;
-}
-
-void Valve::turnOff()
-{
-    m_turnedOnTime = -1;
-    switchValve(LOW);
-}
-
-int Valve::getValveNumber() const
-{
-    return m_data.valveNumber;
+    return checkTurnOffTime(dt) <= 0;
 }
 
 /**
@@ -103,27 +82,81 @@ bool Valve::checkTurnOn(const DateTime& dt) const
     {
         return false;//no need to turn it on, if it is already on
     }
-    if(!isDayOn(dt.Dow))//if it is sunday 00:05, and it is set to turn on on saturday 23:59, it won't turn on
+    return checkTurnOnTime(dt) <= 0;
+}
+
+
+/**
+ * @dt current date time to check against
+ * @return minutes left before the valve needs to be turned off. Negative values indicate the valve should have been  switched off before n minutes
+ **/
+int Valve::checkTurnOffTime(const DateTime& dt) const
+{
+    int currentMinute = (dt.Dow-1) * MINUTES_IN_DAY + dt.Hour * 60 + dt.Minute;
+    
+    int num = currentMinute - m_data.timeCountdown;
+    if(num <= 0)
     {
-        return false;
+        num = MINUTES_IN_WEEK + num;
     }
+    
+    return m_turnedOnTime - num;
+}
+
+/**
+ * @dt current date time to check against
+ * @return minutes left before the valve needs to be turned on. Negative values indicate the valve should have been switched on before n minutes
+ **/
+int Valve::checkTurnOnTime(const DateTime& dt) const
+{
     int currentMinute = (dt.Dow - 1) * MINUTES_IN_DAY + dt.Hour * 60 + dt.Minute;
-    int turnOnMinuteDay = m_data.hour * 60 + m_data.minute;
-    
-    int turnOnTime = (dt.Dow - 1) * MINUTES_IN_DAY + turnOnMinuteDay;
-    int turnOffTime = turnOnTime + m_data.timeCountdown;
-    if(turnOnTime - currentMinute <= 0 && turnOffTime - currentMinute > 0)
+    int soonestTurnOn = INT_MAX;
+    for(int i = 0; i < 7; ++i)
     {
-        return true;
+        if(isDayOn(i+1))
+        {
+            int turnOnTime = i * MINUTES_IN_DAY + m_data.hour * 60 + m_data.minute;
+            int turnOnDelay = turnOnTime - currentMinute;
+            if(turnOnDelay < 0 && (abs(turnOnDelay) >= m_data.timeCountdown))
+            {
+                turnOnDelay = MINUTES_IN_WEEK + turnOnDelay;
+            }
+            if(turnOnDelay < soonestTurnOn)
+            {
+                soonestTurnOn = turnOnDelay;
+            }
+        }
     }
-    
-    return false;
+    return soonestTurnOn;
+}
+
+int Valve::getActionTime(const DateTime& dt) const
+{
+    if(isOn())
+    {
+        return checkTurnOffTime(dt);
+    }
+    else
+    {
+        return checkTurnOnTime(dt);
+    }
 }
 
 void Valve::turnOn(const DateTime& dt)
 {
-    m_turnedOnTime = ((dt.Dow-1) * MINUTES_IN_DAY) + m_data.hour*60 + m_data.minute;/*(dt.Hour*60) + dt.Minute;*/
+    m_turnedOnTime = ((dt.Dow-1) * MINUTES_IN_DAY) + m_data.hour*60 + m_data.minute;
     switchValve(HIGH);
+}
+
+void Valve::turnOff()
+{
+    m_turnedOnTime = -1;
+    switchValve(LOW);
+}
+
+int Valve::getValveNumber() const
+{
+    return m_data.valveNumber;
 }
 
 void Valve::switchValve(int newHbridgeState)
@@ -139,10 +172,10 @@ void Valve::switchValve(int newHbridgeState)
     {
         return;
     }
-    delay(RELAY_SETTLE_TIME);
+    utility::delay(RELAY_SETTLE_TIME);
     
     digitalWrite(m_data.valveNumber, LOW);
-    delay(LATCH_TIME_MILLIS);
+    utility::delay(LATCH_TIME_MILLIS);
     digitalWrite(m_data.valveNumber, HIGH);
 }
 
@@ -219,6 +252,11 @@ int8_t* Valve::getHBridgePin()
     return hBridgePin;
 }
 
+void utility::delay(unsigned long ms)
+{
+    unsigned long startTime = millis();
+    while((millis() - startTime) < ms);
+}
 #ifdef DEBUG
 String Valve::toString()
 {
