@@ -4,8 +4,8 @@
 
 Valve valves[50];
 DS3231_Simple myClock;
-const int8_t H_BRIDGE_PIN[] = {3, 4};
-const int BLUETOOTH_INTERRUPT_PIN = 13;
+const int8_t H_BRIDGE_PIN[] = {13, 4};
+const int BLUETOOTH_INTERRUPT_PIN = 3;
 const int ALARM_INTERRUPT_PIN = 2;
 
 const uint8_t SEND_VALVE = 0x1c;

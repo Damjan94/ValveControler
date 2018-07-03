@@ -12,6 +12,7 @@ Valve::Valve(Valve::data data) : Valve(data.valveNumber, data.hour, data.minute,
 {
     
 }
+//TODO figure out what happens when timeCountdown is a large value(ie. prevent the overflow that will happen on checking the valve to open or close)
 Valve::Valve(int8_t valveNumber, uint8_t hour, uint8_t minute, uint16_t timeCountdown, uint8_t daysOn):
     m_data{timeCountdown, valveNumber, hour, minute, daysOn}, m_turnedOnTime{-1}
 {
@@ -145,13 +146,13 @@ int Valve::getActionTime(const DateTime& dt) const
 void Valve::turnOn(const DateTime& dt)
 {
     m_turnedOnTime = ((dt.Dow-1) * MINUTES_IN_DAY) + m_data.hour*60 + m_data.minute;
-    switchValve(HIGH);
+    switchValve(LOW);
 }
 
 void Valve::turnOff()
 {
     m_turnedOnTime = -1;
-    switchValve(LOW);
+    switchValve(HIGH);
 }
 
 int Valve::getValveNumber() const
