@@ -9,7 +9,7 @@ class ValveController
 {
 private:
     
-    const static long RELAY_SETTLE_TIME = 5;
+    const static long RELAY_SETTLE_TIME = 10;
     
     int8_t m_hBridgePin[2];
     

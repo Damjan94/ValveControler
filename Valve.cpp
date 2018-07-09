@@ -67,7 +67,7 @@ bool Valve::checkTurnOff(const DateTime& dt) const
         return false;//no need to turn it off, if it is already off
     }
     
-    return checkTurnOffTime(dt) <= 0;
+    return checkTurnOffTime(dt) < 0;
 }
 
 /**
@@ -142,7 +142,7 @@ int Valve::getActionTime(const DateTime& dt) const
 
 void Valve::turnOn(const DateTime& dt)
 {
-    m_turnedOnTime = ((dt.Dow-1) * MINUTES_IN_DAY) + m_data.hour*60 + m_data.minute;
+    m_turnedOnTime = utility::dateTimeToMinutesInWeek(dt);
     switchValve();
 }
 
@@ -172,11 +172,14 @@ void Valve::fromSerial(HardwareSerial& serial)
 {
     uint8_t valveBytes[VALVE_NETWORK_SIZE];
     int readByteCount = serial.readBytes(valveBytes, VALVE_NETWORK_SIZE);
+    if(readByteCount != VALVE_NETWORK_SIZE){};//TODO Handle the bad read
     int8_t valveNumber = valveBytes[0];
     uint8_t hour = valveBytes[1];
     uint8_t minute = valveBytes[2];
     uint8_t daysOn = valveBytes[3];
-    uint16_t timeCountdown =  *((uint16_t*) (void*) &valveBytes[4]);
+    //uint16_t timeCountdown =  *((uint16_t*) (void*) &valveBytes[4]);
+    uint16_t timeCountdown;
+    memcpy(&timeCountdown, &valveBytes[4], sizeof(timeCountdown));
 
     (*this) = Valve(valveNumber, hour, minute, timeCountdown, daysOn);
 }
@@ -208,7 +211,7 @@ void utility::delay(unsigned long ms)
 int utility::dateTimeToMinutesInWeek(const DateTime& dt)
 {
     static const int MINUTES_IN_DAY = 1440;
-    return (dt.Dow-1) * MINUTES_IN_DAY + dt.Hour * 60 + dt.Minute;
+    return ((dt.Dow-1) * MINUTES_IN_DAY) + (dt.Hour * 60) + dt.Minute;
 }
 #include <time.h>
 DateTime utility::addMinutesToDate(int minutes, const DateTime& date)

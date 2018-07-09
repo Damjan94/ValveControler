@@ -51,6 +51,9 @@ void setup()
     
     pinMode(BLUETOOTH_INTERRUPT_PIN, INPUT);
     pinMode(ALARM_INTERRUPT_PIN, INPUT);
+
+    pinMode(0, INPUT);
+    pinMode(1, INPUT);
     
     isBluetoothConnected = digitalRead(BLUETOOTH_INTERRUPT_PIN) == HIGH;
     isHandshakeSuccessful = false;
@@ -118,11 +121,13 @@ void checkStream()
 
 bool doHandshake()
 {
+  /*
   clearStream(Serial);
   Serial.write(0x5);
   if(Serial.read()!=0x5) return false;
   Serial.write(0xF);
   if(Serial.read()!=0xF) return false;
+  */
   return true;
 }
 void loop() 
@@ -158,7 +163,7 @@ void loop()
             LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
         }
     }
-    utility::delay(500);
+    LowPower.idle(SLEEP_120MS, ADC_ON, TIMER2_ON, TIMER1_ON, TIMER0_ON, SPI_ON, USART0_ON, TWI_ON);
 }
 
 void dateTimeToSerial(const DateTime& dt, HardwareSerial& serial)
