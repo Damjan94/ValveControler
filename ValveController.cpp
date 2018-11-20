@@ -1,5 +1,6 @@
 #include "ValveController.h"
 #include <limits.h>
+	
 ValveController::ValveController() : m_hBridgePin{4, 13}
 {
     m_isHbridgeSet = true;
@@ -8,7 +9,7 @@ ValveController::ValveController() : m_hBridgePin{4, 13}
 }
 
 
-bool ValveController::switchHBridge(int8_t state)
+bool ValveController::setHBridge(HBridgeState state)
 {
     if(!m_isHbridgeSet)
     {
@@ -30,54 +31,7 @@ int8_t* ValveController::getHBridgePin()
     return m_hBridgePin;
 }
 
-bool ValveController::sendValves(HardwareSerial& serial)
-{
-    serial.write(m_valveCount);
-    for(size_t i = 0; i < m_valveCount; ++i)
-    {
-        m_valves[i].toSerial(serial);
-    }
-    serial.flush();
-    return true;
-}
-
-bool ValveController::receiveValves(HardwareSerial& serial)
-{
-    uint8_t newValveCount = serial.read();
-    if(newValveCount > (sizeof(m_valves)/sizeof(Valve)))
-    {
-        return false;
-    }
-    //close the valves
-    //before assigning the new valve count
-    closeAllValves();
-    m_valveCount = newValveCount;
-    for(size_t i = 0; i < m_valveCount; ++i)
-    {
-        int tryCount = 0;
-        bool isValveInBuffer = true;
-        while(serial.available() < Valve::VALVE_NETWORK_SIZE)
-        {
-                utility::delay(100);
-                ++tryCount;
-                if(tryCount > 3)
-                {
-                    while(serial.available() > 0)
-                    {
-                        serial.read();//purge the stream
-                    }
-                    isValveInBuffer = false;
-                }
-        }
-        if(!isValveInBuffer)
-        break;
-        m_valves[i].fromSerial(serial);
-        //Serial.write(Message::VALVE_RECEIVED);
-    }
-    return true;
-}
-
-void ValveController::updateValves(const DateTime& dt)
+void ValveController::update(const DateTime& dt)
 {
     bool hBridgeSetToTurnOn = false;
     for(size_t i = 0; i < m_valveCount; ++i)
@@ -86,10 +40,11 @@ void ValveController::updateValves(const DateTime& dt)
         {
             if(!hBridgeSetToTurnOn)
             {
-                switchHBridge(LOW);
+                setHBridge(HBridgeState::open);
                 hBridgeSetToTurnOn = true;
             }
             m_valves[i].turnOn(dt);
+            m_safeToChangeValves = false;
         }
     }
     bool hBridgeSetToTurnoff = false;
@@ -99,7 +54,7 @@ void ValveController::updateValves(const DateTime& dt)
         {
             if(!hBridgeSetToTurnoff)
             {
-                switchHBridge(HIGH);
+                setHBridge(HBridgeState::close);
                 hBridgeSetToTurnoff = true;
             }
             m_valves[i].turnOff();
@@ -108,7 +63,7 @@ void ValveController::updateValves(const DateTime& dt)
 
     if(getHBridgeState() != HIGH)
     {
-        switchHBridge(HIGH);
+        setHBridge(HBridgeState::close);
     }
 }
 
@@ -131,9 +86,51 @@ void ValveController::closeAllValves()
     //TODO fix this code. 5 and 12 are the valid valve pins
     for(int i = 5; i <= 12; ++i)
     {
-        switchHBridge(HIGH);
+        setHBridge(HBridgeState::close);
         digitalWrite(i, LOW);
         utility::delay(15);
         digitalWrite(i, HIGH);
     }
+    m_safeToChangeValves = true;
+}
+
+size_t ValveController::getValveCount() const
+{
+    return m_valveCount;
+}
+
+const Valve* ValveController::getValves() const
+{
+    return m_valves;
+}
+
+const Valve* ValveController::getValve(size_t index) const
+{
+    if(m_valveCount < index)
+        return nullptr;
+    return &m_valves[index];
+}   
+
+void ValveController::setValve(size_t index, const Valve& valve)
+{
+    if(!m_safeToChangeValves)
+        return;
+    if(m_valveCount < index)
+        return;
+    m_valves[index] = valve;
+}
+
+void ValveController::addValve(const Valve& valve)
+{
+    if(!m_safeToChangeValves)
+        return;
+    if(m_valveCount+1 >= 50)
+        return; 
+    m_valves[m_valveCount++] = valve;
+}
+
+void ValveController::clear()
+{
+    closeAllValves();
+    m_valveCount = 0;
 }

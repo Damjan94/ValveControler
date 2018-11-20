@@ -1,18 +1,36 @@
 #include "Valve.h"
-#include <limits.h>
+#include <limits.h> //TODO what is this for
+#include <util.h>
 
 Valve::Valve(): Valve(INVALID_PIN, 0, 0, 0, 0)
 {
     
 } 
-Valve::Valve(Valve::data data) : Valve(data.valveNumber, data.hour, data.minute, data.timeCountdown, data.daysOn)
+Valve::Valve(const Valve::data& data) : Valve(data.valveNumber, data.hour, data.minute, data.daysOn, data.timeCountdown)
 {
     
 }
-//TODO figure out what happens when timeCountdown is a large value(ie. prevent the overflow that will happen on checking the valve to open or close)
-Valve::Valve(int8_t valveNumber, uint8_t hour, uint8_t minute, uint16_t timeCountdown, uint8_t daysOn):
-    m_data{timeCountdown, valveNumber, hour, minute, daysOn}, m_turnedOnTime{-1}
+Valve::Valve(const uint8_t* data, bool isDataInNetworkByteOrder) : Valve(fromBytes(data, isDataInNetworkByteOrder))
 {
+}
+
+
+//TODO figure out what happens when timeCountdown is a large value(ie. prevent the overflow that will happen on checking the valve to open or close)
+Valve::Valve(int8_t valveNumber, uint8_t hour, uint8_t minute, uint8_t daysOn, uint16_t timeCountdown):
+    m_data{valveNumber, hour, minute, daysOn, timeCountdown}, m_turnedOnTime{-1}
+{
+    validate();
+}
+
+
+bool Valve::isValvePinValid()
+{
+    return m_data.valveNumber >= LOWEST_VALID_PIN_FOR_VALVE && m_data.valveNumber <= HIGHEST_VALID_PIN_FOR_VALVE;
+
+}
+void Valve::validate()
+{
+    
     if(!isValvePinValid()
     //don't want to turn on valves if they don't have any days to be turned on
     || m_data.daysOn == 0
@@ -26,8 +44,8 @@ Valve::Valve(int8_t valveNumber, uint8_t hour, uint8_t minute, uint16_t timeCoun
         m_data.valveNumber = INVALID_PIN;
         return;
     }
-    pinMode(valveNumber, OUTPUT);
-    digitalWrite(valveNumber, HIGH);
+    pinMode(m_data.valveNumber, OUTPUT);
+    digitalWrite(m_data.valveNumber, HIGH);
 }
 
 bool Valve::isDayOn(int day) const
@@ -49,10 +67,6 @@ void Valve::setDayOn(int day, bool value)
         m_data.daysOn ^= (-newbit ^ m_data.daysOn) & (0x1 << day);
 } 
 */
-bool Valve::isValvePinValid()
-{
-    return m_data.valveNumber >= LOWEST_VALID_PIN_FOR_VALVE && m_data.valveNumber <= HIGHEST_VALID_PIN_FOR_VALVE;
-}
 
 
 
@@ -167,7 +181,7 @@ void Valve::switchValve()
     utility::delay(LATCH_TIME_MILLIS);
     digitalWrite(m_data.valveNumber, HIGH);
 }
-
+/*
 void Valve::fromSerial(HardwareSerial& serial)
 {
     uint8_t valveBytes[VALVE_NETWORK_SIZE];
@@ -193,7 +207,42 @@ void Valve::toSerial(HardwareSerial& serial) const
     serial.write((uint8_t)(m_data.timeCountdown>>1*8));
     serial.write((uint8_t)(m_data.timeCountdown>>0*8));
 }
+*/
 
+Valve::data Valve::fromBytes(const uint8_t* bytes, bool isDataInNetworkByteOrder)
+{
+    data dt;
+    
+    dt.valveNumber      = bytes[0];
+    dt.hour             = bytes[sizeof(dt.valveNumber)];
+    dt.minute           = bytes[sizeof(dt.valveNumber) + sizeof(dt.hour)];
+    dt.daysOn           = bytes[sizeof(dt.valveNumber) + sizeof(dt.hour) + sizeof(dt.minute)];
+    dt.timeCountdown    = *((uint16_t*) (&(bytes[sizeof(dt.valveNumber) + sizeof(dt.hour) + sizeof(dt.minute) + sizeof(dt.daysOn)])));
+    
+    if(isDataInNetworkByteOrder == true)
+    {
+        dt.timeCountdown = ntohs(dt.timeCountdown);
+    }
+    return dt;
+}
+
+uint8_t* Valve::toBytes(bool isDataInNetworkByteOrder) const
+{
+    uint16_t timeCountdown = m_data.timeCountdown;
+    if(isDataInNetworkByteOrder == true)
+    {
+        timeCountdown = htons(timeCountdown);
+    }
+    
+    uint8_t* bytes = (uint8_t*)malloc(Valve::NETWORK_SIZE);
+    bytes[0] =                                                                                                      m_data.valveNumber;
+    bytes[sizeof(m_data.valveNumber)] =                                                                             m_data.hour;
+    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour)] =                                                       m_data.minute;
+    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute)] =                               m_data.daysOn;
+    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)] =       (&m_data.daysOn)[0];
+    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn) + 1] =   (&m_data.daysOn)[1];
+    return bytes;
+}
 bool Valve::isOn() const
 {
     return m_turnedOnTime >= 0;
@@ -201,7 +250,7 @@ bool Valve::isOn() const
 
 
 /////////////////////////////////////////////////////////////////////
-//utility functions, move it to it;s own file
+//utility functions, move it to it's own file
 void utility::delay(unsigned long ms)
 {
     unsigned long startTime = millis();
