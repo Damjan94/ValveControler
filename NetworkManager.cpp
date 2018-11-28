@@ -35,6 +35,7 @@ void NetworkManager::update()
                     for(size_t i = 0; i < msg.itemCount; ++i)
                     {
                         Message msg;
+                        msg.type = Type::info;
                         msg.info = Info::readyToReceive;
                         sendMessage(msg);
                         m_valveController.addValve(receiveValve());
@@ -60,6 +61,11 @@ void NetworkManager::update()
             {
                 case Action::valve:
                 {
+                    Message msg;
+                    msg.type = Type::command;
+                    msg.action = Action::valves;
+                    msg.itemCount = m_valveCountroller.getValveCount();
+                    sendMessage(msg);
                     //no space in ram to request a byte array from valve controller
                     for(size_t i = 0; i < m_valveController.getValveCount(); ++i)
                     {
@@ -67,7 +73,7 @@ void NetworkManager::update()
                         if(v == nullptr)
                         {
                             //we are out of bounds
-                            break;//TODO notify arduino that not all valves vere sent?
+                            break;//TODO notify android that not all valves vere sent?
                         }
                         sendValve(*v);
                         //arduino doesnt wait for the phone to send "ready to receive"
@@ -89,11 +95,7 @@ void NetworkManager::update()
                 case Action::temperatureFloat:
                 {
                     float temp = m_clock.getTemperatureFloat();
-                    uint8_t* byteTemp = (uint8_t*)&temp;
-                    for(int i = sizeof(temp)-1; i >= 0; --i)
-                    {
-                      Serial.write(byteTemp[i]);
-                    }
+                    sendTemperatureFloat(temp);
                     break;
                 }
                 case Action::hBridgePin:
