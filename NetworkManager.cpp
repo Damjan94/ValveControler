@@ -1,8 +1,9 @@
 #include "NetworkManager.h"
 #include <CRC32.h>
 #include <util.h>   //for ntohx and htonx
+#include <DS3231_Simple.h>
 
-NetworkManager::NetworkManager(DS3231_Simple& myClock, ValveController& myValveController) : m_clock{myClock}, m_valveController{myValveController}
+NetworkManager::NetworkManager(DS3231_Simple& myClock, ValveController& myValveControler) : m_clock{myClock}, m_valveControler{ myValveControler }
 {
 
 }
@@ -11,17 +12,8 @@ void NetworkManager::update()
     if(!Serial.available())
         return;
     //check the stream for data
-    const static int BUFFER_SIZE = 4; //we are reading a message struct, and it has a type, action, info and size, all are 1 buyte each
-    uint8_t buffer[BUFFER_SIZE];
-    
-    readBytes(BUFFER_SIZE, buffer);
-
-    //TODO do proper conversions from byte to class enum. or just use enums...
-    Message msg;
-    msg.type        = static_cast<Type>(buffer[0]);
-    msg.action      = static_cast<Action>(buffer[1]);
-    msg.info        = static_cast<Info>(buffer[2]);
-    msg.itemCount   = buffer[3];
+	
+	Message msg = receiveMessage();
 
     switch(msg.type)
     {
@@ -31,14 +23,14 @@ void NetworkManager::update()
             {
                 case Action::valve:
                 {
-                    m_valveController.clear();
+                    m_valveControler.clear();
                     for(size_t i = 0; i < msg.itemCount; ++i)
                     {
                         Message msg;
                         msg.type = Type::info;
                         msg.info = Info::readyToReceive;
                         sendMessage(msg);
-                        m_valveController.addValve(receiveValve());
+						m_valveControler.addValve(receiveValve());
                     }
                     break;
                 }
@@ -63,13 +55,13 @@ void NetworkManager::update()
                 {
                     Message msg;
                     msg.type = Type::command;
-                    msg.action = Action::valves;
-                    msg.itemCount = m_valveCountroller.getValveCount();
+                    msg.action = Action::valve;
+                    msg.itemCount = m_valveControler.getValveCount();
                     sendMessage(msg);
                     //no space in ram to request a byte array from valve controller
-                    for(size_t i = 0; i < m_valveController.getValveCount(); ++i)
+                    for(size_t i = 0; i < m_valveControler.getValveCount(); ++i)
                     {
-                        const Valve* v = m_valveController.getValve(i);
+                        const Valve* v = m_valveControler.getValve(i);
                         if(v == nullptr)
                         {
                             //we are out of bounds
@@ -100,7 +92,7 @@ void NetworkManager::update()
                 }
                 case Action::hBridgePin:
                 {
-                    int8_t* hbridgePins = m_valveController.getHBridgePin();
+                    int8_t* hbridgePins = m_valveControler.getHBridgePin();
                     sendHBridgePin(hbridgePins);
                     break;
                 }
@@ -214,7 +206,7 @@ void NetworkManager::sendTemperatureFloat(float temp) const
     uint32_t crc32 = CRC32::calculate(&temp, sizeof(temp));
     crc32 = htonl(crc32);
     Serial.write((uint8_t*)(&crc32), sizeof(crc32));
-    temp = htonl((uint32_t)(temp));
+    temp = htonl((uint32_t)(temp));//TODO is it ok to change the endiannes of a float?
     Serial.write((uint8_t*)&temp, sizeof(temp));
 }
 
@@ -243,6 +235,32 @@ size_t NetworkManager::readBytes(size_t count, uint8_t* data) const
         //TODO maybe sleep for a while?
     }
     return readBytes;
+}
+
+NetworkManager::Message NetworkManager::receiveMessage() const
+{
+	uint32_t crc32;
+	Serial.readBytes((uint8_t*)(&crc32), sizeof(crc32));
+	crc32 = ntohl(crc32);
+
+	uint8_t buffer[NetworkManager::Message::NETWORK_SIZE];
+
+	readBytes(NetworkManager::Message::NETWORK_SIZE, buffer);
+
+	uint32_t calculatedCrc32 = CRC32::calculate(buffer, NetworkManager::Message::NETWORK_SIZE);
+	Message msg;
+	if (crc32 != calculatedCrc32)
+	{
+		return msg;
+	}
+
+	//TODO do proper conversions from byte to class enum. or just use enums...
+	
+	msg.type = static_cast<Type>(buffer[0]);
+	msg.action = static_cast<Action>(buffer[1]);
+	msg.info = static_cast<Info>(buffer[2]);
+	msg.itemCount = buffer[3];
+	return msg;
 }
 
 void NetworkManager::sendMessage(const Message& msg) const

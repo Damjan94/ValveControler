@@ -213,15 +213,15 @@ Valve::data Valve::fromBytes(const uint8_t* bytes, bool isDataInNetworkByteOrder
 {
     data dt;
     
-    dt.valveNumber      = bytes[0];
-    dt.hour             = bytes[sizeof(dt.valveNumber)];
-    dt.minute           = bytes[sizeof(dt.valveNumber) + sizeof(dt.hour)];
-    dt.daysOn           = bytes[sizeof(dt.valveNumber) + sizeof(dt.hour) + sizeof(dt.minute)];
-    dt.timeCountdown    = *((uint16_t*) (&(bytes[sizeof(dt.valveNumber) + sizeof(dt.hour) + sizeof(dt.minute) + sizeof(dt.daysOn)])));
+    dt.valveNumber				= bytes[0];
+    dt.hour						= bytes[sizeof(dt.valveNumber)];
+    dt.minute					= bytes[sizeof(dt.valveNumber) + sizeof(dt.hour)];
+    dt.daysOn					= bytes[sizeof(dt.valveNumber) + sizeof(dt.hour) + sizeof(dt.minute)];
+    uint16_t timeCountdown		= *((uint16_t*) (&(bytes[sizeof(dt.valveNumber) + sizeof(dt.hour) + sizeof(dt.minute) + sizeof(dt.daysOn)])));
     
     if(isDataInNetworkByteOrder == true)
     {
-        dt.timeCountdown = ntohs(dt.timeCountdown);
+        dt.timeCountdown = ntohs(timeCountdown);
     }
     return dt;
 }
@@ -239,8 +239,8 @@ uint8_t* Valve::toBytes(bool isDataInNetworkByteOrder) const
     bytes[sizeof(m_data.valveNumber)] =                                                                             m_data.hour;
     bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour)] =                                                       m_data.minute;
     bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute)] =                               m_data.daysOn;
-    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)] =       (&m_data.daysOn)[0];
-    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn) + 1] =   (&m_data.daysOn)[1];
+    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)] =       (uint8_t) (timeCountdown >> 8);
+    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn) + 1] =	(uint8_t) (timeCountdown);
     return bytes;
 }
 bool Valve::isOn() const

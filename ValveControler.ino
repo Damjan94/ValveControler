@@ -1,7 +1,7 @@
 #include <LowPower.h>
 #include <DS3231_Simple.h>
-#include <ValveController.h>
-#include <NetworkManager.h>
+#include "ValveControler.h"
+#include "NetworkManager.h"
 
 DS3231_Simple   myClock;
 ValveController myValveController;

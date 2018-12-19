@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <DS3231_Simple.h>
-#include <ValveController.h>
+#include "ValveControler.h"
 
 class NetworkManager
 {
@@ -35,6 +35,7 @@ class NetworkManager
 
     struct Message
     {
+		const static size_t NETWORK_SIZE = 4;
         Type type;
         Action action;
         Info info;
@@ -51,6 +52,7 @@ class NetworkManager
     protected:
     size_t readBytes(size_t count, uint8_t*  data) const;
     void sendMessage(const Message&) const;
+	Message receiveMessage() const;
     Valve receiveValve() const;
     void sendValve(const Valve&) const;
 
@@ -65,5 +67,5 @@ class NetworkManager
     private:
 
     DS3231_Simple&      m_clock;
-    ValveController&    m_valveController;
+    ValveController&    m_valveControler;
 };
