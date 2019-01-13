@@ -10,17 +10,6 @@ NetworkManager  myNetworkManager(myClock, myValveController);
 const int BLUETOOTH_INTERRUPT_PIN = 3;
 const int ALARM_INTERRUPT_PIN = 2;
 
-const uint8_t SEND_VALVE = 0x1c;
-const uint8_t RECEIVE_VALVE = 0x2c;
-
-const uint8_t SEND_TIME = 0x1a;
-const uint8_t RECEIVE_TIME = 0x2a;
-
-const uint8_t SEND_TEMP_FLOAT = 0x1b;
-const uint8_t SEND_TEMP = 0x2b;
-
-const uint8_t SEND_HBRIDGE_PIN = 0x1d;
-
 volatile bool isBluetoothConnected;
 
 volatile bool isAlarmActive;
@@ -62,13 +51,12 @@ void loop()
 {
     if(isBluetoothConnected)
     {
-        myNetworkManager.update();
+		myNetworkManager.update();
     }
     
     const DateTime& dt = myClock.read();
-    
     myValveController.update(dt);
-    
+
     if(!isBluetoothConnected && !isAlarmActive)
     {
         DateTime alarmDate = myValveController.getSoonestActionDate(dt);

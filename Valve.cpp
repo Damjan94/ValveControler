@@ -81,7 +81,7 @@ bool Valve::checkTurnOff(const DateTime& dt) const
         return false;//no need to turn it off, if it is already off
     }
     
-    return checkTurnOffTime(dt) < 0;
+    return checkTurnOffTime(dt) <= 0;
 }
 
 /**
@@ -137,6 +137,7 @@ int Valve::checkTurnOnTime(const DateTime& dt) const
             {
                 soonestTurnOn = turnOnDelay;
             }
+			//this part gets executed
         }
     }
     return soonestTurnOn;
@@ -239,8 +240,9 @@ uint8_t* Valve::toBytes(bool isDataInNetworkByteOrder) const
     bytes[sizeof(m_data.valveNumber)] =                                                                             m_data.hour;
     bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour)] =                                                       m_data.minute;
     bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute)] =                               m_data.daysOn;
-    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)] =       (uint8_t) (timeCountdown >> 8);
-    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn) + 1] =	(uint8_t) (timeCountdown);
+    //bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)] =       (uint8_t) (timeCountdown >> 8);
+    //bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn) + 1] =	(uint8_t) (timeCountdown);
+	memcpy(&(bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)]), &timeCountdown, sizeof(timeCountdown));
     return bytes;
 }
 bool Valve::isOn() const

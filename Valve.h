@@ -22,7 +22,7 @@ private:
     Valve::data m_data;
     int16_t m_turnedOnTime;//negative means that the valve is off, positive value indicates what minute in the week did it turn on
 
-    const static uint64_t LATCH_TIME_MILLIS = 15;
+    const static uint64_t LATCH_TIME_MILLIS = 15;//default 15
     const static uint16_t MINUTES_IN_DAY = 1440;
     const static uint16_t MINUTES_IN_WEEK = 10080;
     const static int8_t LOWEST_VALID_PIN_FOR_VALVE = 5;
@@ -43,8 +43,12 @@ public:
     Valve(const uint8_t* data, bool isDataInNetworkByteOrder = false);
     bool isDayOn(int day) const;
     //void setDayOn(int day, bool value);
+	/**
+	these two functions assume that the hbridge is set properly
+	**/
     void turnOn(const DateTime& dt);
     void turnOff();
+
     bool checkTurnOn(const DateTime& dt) const;
     bool checkTurnOff(const DateTime& dt) const;
     //void fromSerial(HardwareSerial& serial);

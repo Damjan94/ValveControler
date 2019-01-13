@@ -36,7 +36,9 @@ void NetworkManager::update()
                 }
                 case Action::time:
                 {
-                    m_clock.write(receiveTime());
+					DateTime dt = receiveTime();
+					if(dt.Year != 0)//I am going on an assumption that it will never be year 0 :P
+						m_clock.write(dt);
                     break;
                 }
                 default:
@@ -65,7 +67,7 @@ void NetworkManager::update()
                         if(v == nullptr)
                         {
                             //we are out of bounds
-                            break;//TODO notify android that not all valves vere sent?
+                            break;//TODO notify android that not all valves were sent?
                         }
                         sendValve(*v);
                         //arduino doesnt wait for the phone to send "ready to receive"
@@ -74,8 +76,7 @@ void NetworkManager::update()
                 }
                 case Action::time:
                 {
-                    DateTime dt = m_clock.read();
-                    sendTime(dt);
+                    sendTime(m_clock.read());
                     break;
                 }
                 case Action::temperature:
@@ -163,7 +164,7 @@ DateTime NetworkManager::receiveTime() const
     DateTime dt{};
     if(calculatedCrc32 != crc32)
     {
-        return dt;
+        return dt;//TODO some error handeling would be nice... but I guess it's never gonna be year 0(this was written in 1019)
     }
 
     dt.Second   = dateTimeBytes[0];
@@ -240,12 +241,17 @@ size_t NetworkManager::readBytes(size_t count, uint8_t* data) const
 NetworkManager::Message NetworkManager::receiveMessage() const
 {
 	uint32_t crc32;
-	Serial.readBytes((uint8_t*)(&crc32), sizeof(crc32));
+	size_t count = Serial.readBytes((uint8_t*)(&crc32), sizeof(crc32));
+	if (count != sizeof(crc32))
+		return;
 	crc32 = ntohl(crc32);
 
 	uint8_t buffer[NetworkManager::Message::NETWORK_SIZE];
 
-	readBytes(NetworkManager::Message::NETWORK_SIZE, buffer);
+	//TODO this should done on every readBytes call, but I am too lazy...
+	count = readBytes(NetworkManager::Message::NETWORK_SIZE, buffer);
+	if (count != NetworkManager::Message::NETWORK_SIZE)
+		return;
 
 	uint32_t calculatedCrc32 = CRC32::calculate(buffer, NetworkManager::Message::NETWORK_SIZE);
 	Message msg;

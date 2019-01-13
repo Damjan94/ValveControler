@@ -1,7 +1,7 @@
 #include "ValveControler.h"
 #include <limits.h>
 	
-ValveController::ValveController() : m_hBridgePin{4, 13}
+ValveController::ValveController() : m_hBridgePin{4, 13}//shouldn't this be set in the startup function?
 {
     m_isHbridgeSet = true;
     pinMode(m_hBridgePin[0], OUTPUT);
@@ -84,11 +84,12 @@ DateTime ValveController::getSoonestActionDate(const DateTime& dt) const
 void ValveController::closeAllValves()
 {
     //TODO fix this code. 5 and 12 are the valid valve pins
+	//TODO are these pins set to output mode?
     for(int i = 5; i <= 12; ++i)
     {
         setHBridge(HBridgeState::close);
         digitalWrite(i, LOW);
-        utility::delay(15);
+        utility::delay(RELAY_SETTLE_TIME);
         digitalWrite(i, HIGH);
     }
     m_safeToChangeValves = true;
@@ -123,9 +124,9 @@ void ValveController::setValve(size_t index, const Valve& valve)
 void ValveController::addValve(const Valve& valve)
 {
     if(!m_safeToChangeValves)
-        return;
-    if(m_valveCount+1 >= 50)
-        return; 
+		closeAllValves();
+    if(m_valveCount+1 >= MAX_VALVES)
+        return; //TODO some error handleing would be nice
     m_valves[m_valveCount++] = valve;
 }
 
