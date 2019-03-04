@@ -18,7 +18,7 @@ bool ValveController::setHBridge(HBridgeState state)
     digitalWrite(m_hBridgePin[0], state);
     digitalWrite(m_hBridgePin[1], state);
     m_hBridgeState = state;
-    utility::delay(RELAY_SETTLE_TIME);
+    Utility::delay(RELAY_SETTLE_TIME);
     return true;
 }
 
@@ -78,7 +78,7 @@ DateTime ValveController::getSoonestActionDate(const DateTime& dt) const
             soonestAction = valveAction;
         }
     }
-    return utility::addMinutesToDate(soonestAction, dt);
+    return Utility::addMinutesToDate(soonestAction, dt);
 }
 
 void ValveController::closeAllValves()
@@ -89,7 +89,7 @@ void ValveController::closeAllValves()
     {
         setHBridge(HBridgeState::close);
         digitalWrite(i, LOW);
-        utility::delay(RELAY_SETTLE_TIME);
+        Utility::delay(RELAY_SETTLE_TIME);
         digitalWrite(i, HIGH);
     }
     m_safeToChangeValves = true;

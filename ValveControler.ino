@@ -1,7 +1,10 @@
+#include <CRC32.h>
 #include <LowPower.h>
 #include <DS3231_Simple.h>
 #include "ValveControler.h"
 #include "NetworkManager.h"
+#include "Error.h"
+#include "Utility.h"
 
 DS3231_Simple   myClock;
 ValveController myValveController;
@@ -11,6 +14,7 @@ const int BLUETOOTH_INTERRUPT_PIN = 3;
 const int ALARM_INTERRUPT_PIN = 2;
 
 volatile bool isBluetoothConnected;
+volatile bool doHandShake = false;
 
 volatile bool isAlarmActive;
 
@@ -21,6 +25,7 @@ String dateToString(const DateTime& dt);
 void bluetoothISR()
 {
     isBluetoothConnected = !isBluetoothConnected;
+	doHandShake = true;
 }
 
 void alarmISR()
@@ -41,22 +46,42 @@ void setup()
     pinMode(1, INPUT);
     
     isBluetoothConnected = digitalRead(BLUETOOTH_INTERRUPT_PIN) == HIGH;
-    
+	if (isBluetoothConnected)
+		doHandShake = true;
+
     isAlarmActive = digitalRead(ALARM_INTERRUPT_PIN) == LOW; //alarm interrupt is active low
     
     attachInterrupt(digitalPinToInterrupt(BLUETOOTH_INTERRUPT_PIN), bluetoothISR, CHANGE);
     attachInterrupt(digitalPinToInterrupt(ALARM_INTERRUPT_PIN), alarmISR, CHANGE);
+	//the delys are here in case arduino has not finished setting up yet...
+	Utility::delay(1000);
+	Utility::delay(100);
 }
 void loop()
 {
+	Error::clear();
+	const DateTime& dt = myClock.read();
+	Error::setTime(dt);
+
     if(isBluetoothConnected)
     {
-		myNetworkManager.update();
+		if (doHandShake && Serial.available())
+		{
+			NetworkManager::Message msg;
+			msg.receive();
+			
+			myNetworkManager.doHandshake(msg);
+			doHandShake = false;
+		}
+		myNetworkManager.update(dt);
     }
     
-    const DateTime& dt = myClock.read();
     myValveController.update(dt);
-
+	if (Error::hasError())
+	{
+		Error::log();
+		Error::clear();
+	}
     if(!isBluetoothConnected && !isAlarmActive)
     {
         DateTime alarmDate = myValveController.getSoonestActionDate(dt);

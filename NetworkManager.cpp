@@ -1,20 +1,50 @@
 #include "NetworkManager.h"
 #include <CRC32.h>
-#include <util.h>   //for ntohx and htonx
 #include <DS3231_Simple.h>
+#include "Utility.h"
 
-NetworkManager::NetworkManager(DS3231_Simple& myClock, ValveController& myValveControler) : m_clock{myClock}, m_valveControler{ myValveControler }
+NetworkManager::NetworkManager(DS3231_Simple& myClock, ValveController& myValveControler) :
+	clock{ myClock }, valveControler{ myValveControler }, deviceSupportsUs{ false }
 {
 
 }
-void NetworkManager::update()
+
+
+void NetworkManager::doHandshake(Message& msg)//TODO this wont work. make it so that the arduino initiates the handshake the first time
 {
+	deviceSupportsUs = false;
+
+	Message msg;
+	msg.type = Type::info;
+	msg.info = Info::handshake;
+	msg.send();
+
+	uint8_t protocolVersion[2];
+	Error::clear();
+	size_t count = Utility::readBytes(sizeof(protocolVersion), protocolVersion);
+
+	uint8_t minVersion, maxVersion;//the min and max versions. android should support everything in between, including min and max.
+	minVersion = protocolVersion[0];
+	maxVersion = protocolVersion[1];
+
+	deviceSupportsUs = (!Error::hasError() && (Message::PROTOCOL_VERSION >= minVersion && Message::PROTOCOL_VERSION <= maxVersion) && count == 2);
+
+	if (!deviceSupportsUs)
+	{
+		Error::log(Error::Number::handshakeFaliure);
+	}
+}
+
+void NetworkManager::update(const DateTime& dt)
+{
+	if (!deviceSupportsUs)
+		return;
     if(!Serial.available())
         return;
     //check the stream for data
 	
-	Message msg = receiveMessage();
-
+	Message msg;
+	msg.receive();
     switch(msg.type)
     {
         case Type::command:
@@ -23,22 +53,46 @@ void NetworkManager::update()
             {
                 case Action::valve:
                 {
-                    m_valveControler.clear();
+                    valveControler.clear();
+					Error::clear();
                     for(size_t i = 0; i < msg.itemCount; ++i)
                     {
                         Message msg;
                         msg.type = Type::info;
                         msg.info = Info::readyToReceive;
-                        sendMessage(msg);
-						m_valveControler.addValve(receiveValve());
+						msg.send();
+						Valve v;
+						Error::clear();
+						receiveValve(v);
+						if (!Error::hasError())
+						{
+							valveControler.addValve(v);
+						}
+						else
+						{
+							//TODO send the error code to android
+							Error::clear();
+						}
                     }
                     break;
                 }
                 case Action::time:
                 {
-					DateTime dt = receiveTime();
-					if(dt.Year != 0)//I am going on an assumption that it will never be year 0 :P
-						m_clock.write(dt);
+					Error::clear();
+
+					DateTime dt;
+					receiveTime(dt);
+					if (!Error::hasError())
+					{
+						clock.write(dt);
+					}
+					else
+					{
+						//TODO send the error
+						Error::clear();
+					}
+
+					Error::clear();
                     break;
                 }
                 default:
@@ -58,12 +112,12 @@ void NetworkManager::update()
                     Message msg;
                     msg.type = Type::command;
                     msg.action = Action::valve;
-                    msg.itemCount = m_valveControler.getValveCount();
-                    sendMessage(msg);
+                    msg.itemCount = valveControler.getValveCount();
+					msg.send();
                     //no space in ram to request a byte array from valve controller
-                    for(size_t i = 0; i < m_valveControler.getValveCount(); ++i)
+                    for(size_t i = 0; i < valveControler.getValveCount(); ++i)
                     {
-                        const Valve* v = m_valveControler.getValve(i);
+                        const Valve* v = valveControler.getValve(i);
                         if(v == nullptr)
                         {
                             //we are out of bounds
@@ -76,24 +130,24 @@ void NetworkManager::update()
                 }
                 case Action::time:
                 {
-                    sendTime(m_clock.read());
+                    sendTime(dt);
                     break;
                 }
                 case Action::temperature:
                 {
-                    uint8_t temp = m_clock.getTemperature();
+                    uint8_t temp = clock.getTemperature();
                     sendTemperature(temp);
                     break;
                 }
                 case Action::temperatureFloat:
                 {
-                    float temp = m_clock.getTemperatureFloat();
+                    float temp = clock.getTemperatureFloat();
                     sendTemperatureFloat(temp);
                     break;
                 }
                 case Action::hBridgePin:
                 {
-                    int8_t* hbridgePins = m_valveControler.getHBridgePin();
+                    int8_t* hbridgePins = valveControler.getHBridgePin();
                     sendHBridgePin(hbridgePins);
                     break;
                 }
@@ -107,7 +161,11 @@ void NetworkManager::update()
         }
         case Type::info:
         {
-
+			switch (msg.info)
+			{
+				default:
+					break;
+			}
             break;
         }
         default:
@@ -118,24 +176,28 @@ void NetworkManager::update()
     }
 }
 
-Valve NetworkManager::receiveValve() const
+void NetworkManager::receiveValve(Valve& v) const
 {
-    
+	Error::clear();
+
     uint32_t crc32;
     Serial.readBytes((uint8_t*)(&crc32), sizeof(crc32));
     crc32 = ntohl(crc32);
     
     uint8_t valve[Valve::NETWORK_SIZE];
     
-    readBytes(Valve::NETWORK_SIZE, valve);
+	Utility::readBytes(Valve::NETWORK_SIZE, valve);
 
     uint32_t calculatedCrc32 = CRC32::calculate(valve, Valve::NETWORK_SIZE);
     if(calculatedCrc32 != crc32)
     {
-        return Valve();//TODO how do I throw an exception....
+		Error::setError(Error::Number::invalidCrc);
     }
 
-    return Valve(valve, true);
+	if (Error::hasError())
+		return;
+
+	v.fromBytes(valve, true);
 }
 
 void NetworkManager::sendValve(const Valve& valve) const
@@ -151,43 +213,37 @@ void NetworkManager::sendValve(const Valve& valve) const
     return;
 }
 
-DateTime NetworkManager::receiveTime() const
+void NetworkManager::receiveTime(DateTime& dt) const
 {
+	Error::clear();
+
     uint32_t crc32;
-    Serial.readBytes((uint8_t*)(&crc32), sizeof(crc32));
+	Utility::readBytes(sizeof(crc32), (uint8_t*)(&crc32));
+	if (Error::hasError())
+		return;
     crc32 = ntohl(crc32);
 
     uint8_t dateTimeBytes[DATE_TIME_BYTE_COUNT];
 
-    readBytes(DATE_TIME_BYTE_COUNT, dateTimeBytes);
+    Utility::readBytes(DATE_TIME_BYTE_COUNT, dateTimeBytes);
+	if (Error::hasError())
+		return;
     uint32_t calculatedCrc32 = CRC32::calculate(dateTimeBytes, DATE_TIME_BYTE_COUNT);
-    DateTime dt{};
+
     if(calculatedCrc32 != crc32)
     {
-        return dt;//TODO some error handeling would be nice... but I guess it's never gonna be year 0(this was written in 1019)
+		Error::setError(Error::Number::invalidCrc);
+        return;//TODO some error handeling would be nice... but I guess it's never gonna be year 0(this was written in 1019)
     }
 
-    dt.Second   = dateTimeBytes[0];
-    dt.Minute   = dateTimeBytes[1];  
-    dt.Hour     = dateTimeBytes[2];
-    dt.Dow      = dateTimeBytes[3];
-    dt.Day      = dateTimeBytes[4];
-    dt.Month    = dateTimeBytes[5];
-    dt.Year     = dateTimeBytes[6];
+	Utility::dateTimeFromBytes(dt, dateTimeBytes);
     //TODO: validate the time
-    return dt;
 }
 
 void NetworkManager::sendTime(const DateTime& dt) const
 {
     uint8_t dateTimeBytes[DATE_TIME_BYTE_COUNT];
-    dateTimeBytes[0] = dt.Second;
-    dateTimeBytes[1] = dt.Minute;
-    dateTimeBytes[2] = dt.Hour;
-    dateTimeBytes[3] = dt.Dow;
-    dateTimeBytes[4] = dt.Day;
-    dateTimeBytes[5] = dt.Month;
-    dateTimeBytes[6] = dt.Year;
+	Utility::dateTimeToBytes(dt, dateTimeBytes);
     uint32_t crc32 = CRC32::calculate(dateTimeBytes, DATE_TIME_BYTE_COUNT);
     crc32 = htonl(crc32);
     Serial.write((uint8_t*)(&crc32), sizeof(crc32));
@@ -220,64 +276,61 @@ void NetworkManager::sendHBridgePin(const int8_t* const hBridgePin) const
     Serial.write(hBridgePin[1]);
 }
 
-size_t NetworkManager::readBytes(size_t count, uint8_t* data) const
-{
-    size_t readBytes = 0;
-    size_t iterationCount = 1;
-    static const size_t MAX_ITERATION_COUNT = 3;
-    while(readBytes < count)
-    {
-        readBytes += Serial.readBytes(data+readBytes, count-readBytes);
-        if(iterationCount >= MAX_ITERATION_COUNT && readBytes < count)
-        {
-            break;
-        }
-        ++iterationCount;
-        //TODO maybe sleep for a while?
-    }
-    return readBytes;
-}
 
-NetworkManager::Message NetworkManager::receiveMessage() const
+
+void NetworkManager::Message::receive()
 {
+	Error::clear();
+
 	uint32_t crc32;
-	size_t count = Serial.readBytes((uint8_t*)(&crc32), sizeof(crc32));
-	if (count != sizeof(crc32))
+	Utility::readBytes(sizeof(crc32), (uint8_t*)(&crc32));
+
+	if (Error::hasError())
 		return;
+
 	crc32 = ntohl(crc32);
 
 	uint8_t buffer[NetworkManager::Message::NETWORK_SIZE];
 
-	//TODO this should done on every readBytes call, but I am too lazy...
-	count = readBytes(NetworkManager::Message::NETWORK_SIZE, buffer);
-	if (count != NetworkManager::Message::NETWORK_SIZE)
+	Utility::readBytes(NetworkManager::Message::NETWORK_SIZE, buffer);
+	if (Error::hasError())
 		return;
 
 	uint32_t calculatedCrc32 = CRC32::calculate(buffer, NetworkManager::Message::NETWORK_SIZE);
-	Message msg;
 	if (crc32 != calculatedCrc32)
 	{
-		return msg;
+		Error::setError(Error::Number::invalidCrc);
+		return;
+	}
+
+	//after the crc check, we know that the recived message is valid
+	if (buffer[0] != Message::PROTOCOL_VERSION)
+	{
+		Error::setError(Error::Number::invalidMessageProtocolVersion);
+		return;
 	}
 
 	//TODO do proper conversions from byte to class enum. or just use enums...
 	
-	msg.type = static_cast<Type>(buffer[0]);
-	msg.action = static_cast<Action>(buffer[1]);
-	msg.info = static_cast<Info>(buffer[2]);
-	msg.itemCount = buffer[3];
-	return msg;
+	this->type = static_cast<Type>(buffer[1]);
+	this->action = static_cast<Action>(buffer[2]);
+	this->info = static_cast<Info>(buffer[3]);
+	this->errorNo = static_cast<Error::Number>(buffer[4]);
+	this->itemCount = buffer[5];
 }
 
-void NetworkManager::sendMessage(const Message& msg) const
+void NetworkManager::Message::send() const
 {
-    uint8_t buffer[4];//1 byte for Type, 1 for Action, and 1 for Info; 1 for item count
-    buffer[0] = static_cast<uint8_t>(msg.type);
-    buffer[1] = static_cast<uint8_t>(msg.action);
-    buffer[2] = static_cast<uint8_t>(msg.info);
-    buffer[3] = msg.itemCount;
+    uint8_t buffer[Message::NETWORK_SIZE];//1 byte for message protocol version, 1 byte for Type, 1 for Action, and 1 for Info; 1 for item count
+	buffer[0] = Message::PROTOCOL_VERSION;
+    buffer[1] = static_cast<uint8_t>(this->type);
+    buffer[2] = static_cast<uint8_t>(this->action);
+    buffer[3] = static_cast<uint8_t>(this->info);
+	buffer[4] = static_cast<uint8_t>(this->errorNo);
+    buffer[5] = this->size;//TODO maybe make a message contain the pointer to the data we need t osend, and item count could be byte count
     uint32_t crc32 = CRC32::calculate(buffer, sizeof(buffer));
     crc32 = htonl(crc32);
     Serial.write((uint8_t*)(&crc32), sizeof(crc32));
     Serial.write(buffer, sizeof(buffer));
+	Serial.write(data, this->size);
 }
