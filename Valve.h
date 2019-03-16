@@ -1,6 +1,8 @@
 #pragma once
 #include <Arduino.h>
 #include <DS3231_Simple.h>
+#include "message.h"
+
 class Valve
 {
     
@@ -26,6 +28,7 @@ private:
     const static int8_t INVALID_PIN = -1;
 
     void switchValve();
+	
     bool isValvePinValid();
     void validate();
 
@@ -33,7 +36,7 @@ private:
     int checkTurnOffTime(const DateTime& dt) const;
 
 public:
-    const static int NETWORK_SIZE = sizeof(Data::valveNumber) + sizeof(Data::hour) + sizeof(Data::minute) + sizeof(Data::daysOn) + sizeof(Data::timeCountdown);//sizeof(Valve::data); << cant do that coz of padding
+    const static size_t NETWORK_SIZE = sizeof(Data::valveNumber) + sizeof(Data::hour) + sizeof(Data::minute) + sizeof(Data::daysOn) + sizeof(Data::timeCountdown);//sizeof(Valve::data); << cant do that coz of padding
     Valve(); 
     Valve(const Data&);
     bool isDayOn(int day) const;
@@ -48,8 +51,10 @@ public:
     bool checkTurnOff(const DateTime& dt) const;
     bool isOn() const;
     int getValveNumber() const;
-    uint8_t* toBytes(bool isDataInNetworkByteOrder = false) const;
-	void fromBytes(const uint8_t* bytes, bool isDataInNetworkByteOrder = false);
+
+	Message* toMessage() const;
+	void fromMessage(const Message & msg);
+
     /**
      * @param dt the time from which to calculate the soonest action time
      * @return the number of minutes in which the action needs to be taken. Negative indecates that the action should have been taken before that amount of minutes

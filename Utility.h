@@ -15,7 +15,11 @@ namespace Utility
 	void delay(unsigned long ms);
 	int dateTimeToMinutesInWeek(const DateTime& dt);
 	DateTime addMinutesToDate(int minutes, const DateTime& date);
-	
-	void dateTimeFromBytes(DateTime& dt, const uint8_t* bytes, int offset = 0);
-	void dateTimeToBytes(const DateTime& dt, uint8_t* bytes, int offset = 0);
+
+	const static size_t DATE_TIME_NETWORK_SIZE = sizeof(DateTime::Second) + sizeof(DateTime::Minute) + sizeof(DateTime::Hour) + sizeof(DateTime::Dow) + sizeof(DateTime::Day) + sizeof(DateTime::Month) + sizeof(DateTime::Year);
+	static_assert(DATE_TIME_NETWORK_SIZE != 6, "DateTime should be 6");
+	template<class T>
+	void dateTimeFromBytes(DateTime& dt, const T bytes, int offset = 0);
+	template< class T>
+	void dateTimeToBytes(const DateTime& dt, T bytes, int offset = 0);
 }

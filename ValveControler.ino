@@ -14,7 +14,10 @@ const int BLUETOOTH_INTERRUPT_PIN = 3;
 const int ALARM_INTERRUPT_PIN = 2;
 
 volatile bool isBluetoothConnected;
-volatile bool doHandShake = false;
+volatile bool isFirstPacketSent;
+volatile uint8_t connectedDeviceErrorCount;
+
+bool ignoreTheDevice;
 
 volatile bool isAlarmActive;
 
@@ -25,7 +28,8 @@ String dateToString(const DateTime& dt);
 void bluetoothISR()
 {
     isBluetoothConnected = !isBluetoothConnected;
-	doHandShake = true;
+	isFirstPacketSent = false;
+	connectedDeviceErrorCount = 0;
 }
 
 void alarmISR()
@@ -46,8 +50,10 @@ void setup()
     pinMode(1, INPUT);
     
     isBluetoothConnected = digitalRead(BLUETOOTH_INTERRUPT_PIN) == HIGH;
-	if (isBluetoothConnected)
-		doHandShake = true;
+	isFirstPacketSent = false;
+	connectedDeviceErrorCount = 0;
+
+	ignoreTheDevice = false;
 
     isAlarmActive = digitalRead(ALARM_INTERRUPT_PIN) == LOW; //alarm interrupt is active low
     
@@ -59,28 +65,52 @@ void setup()
 }
 void loop()
 {
-	Error::clear();
 	const DateTime& dt = myClock.read();
-	Error::setTime(dt);
 
+	Error::clear();
+	Error::update(dt);
+	
     if(isBluetoothConnected)
     {
-		if (doHandShake && Serial.available())
+		//the first packet tells android what version of the app we are using
+		if (!isFirstPacketSent)
 		{
-			NetworkManager::Message msg;
-			msg.receive();
-			
-			myNetworkManager.doHandshake(msg);
-			doHandShake = false;
+			Message msg(Message::Type::info, Message::Action::none, Message::Info::nominal);
+			msg.send();
+
+			//update the state variables, since this is a new connection
+			isFirstPacketSent = true;
+			ignoreTheDevice = false;
+			connectedDeviceErrorCount = 0;
 		}
-		myNetworkManager.update(dt);
+		//if we are not ignoring the device, try to read any sent bytes, otherwise, empty the buffer
+		if (!ignoreTheDevice)
+		{
+			myNetworkManager.update(dt);
+		}
+		else
+		{
+			while (Serial.available())
+			{
+				Serial.read();
+			}
+		}
+
+		//only errors are network related, so we just log them, and if there's a lot of em, we ignore the device
+		if (Error::hasError())
+		{
+			Error::log();
+			Error::clear();
+			++connectedDeviceErrorCount;
+			if (connectedDeviceErrorCount > 3)
+			{
+				ignoreTheDevice = true;
+			}
     }
     
     myValveController.update(dt);
-	if (Error::hasError())
-	{
-		Error::log();
-		Error::clear();
+
+	//go to sleep logic
 	}
     if(!isBluetoothConnected && !isAlarmActive)
     {

@@ -4,16 +4,14 @@
 class Error
 {
 public:
-	Error();
-	~Error();
-
 	enum class Number : uint8_t
 	{
 		none							= 0x0,
-		handshakeFaliure				= 0x2,
+		startedIgnoringTheDevice		= 0x2,
 		invalidCrc						= 0x3,
 		couldNotReadAllBytes			= 0x4,
-		invalidMessageProtocolVersion	= 0x5
+		tooManyValvesToReceive			= 0x5,
+		invalidMessageProtocolVersion	= 0xFF
 	};
 	struct Description
 	{
@@ -23,9 +21,14 @@ public:
 
 	static bool hasError();
 	static Error::Description getError();
+
+	static void setError(Error::Number num);
 	static void setError(Error::Description num);
 
+	static void update(const DateTime& dt);
+
 	static void log();
+	static void log(Error::Number num);
 	static void log(Error::Description error);
 	/*
 	gets the oldest log, and deletes it from storage.
@@ -33,11 +36,13 @@ public:
 	returns Error::Number::none, if there are no stored logs
 	*/
 	static void loadNextLogged();
-	static void toMessage(NetworkManager::Message& msg);
+
+	static Message* toMessage();
 	//resets current error to Error::Number::none
 	static void clear();
 
 protected:
 	static Description currentError;
+	static DateTime& currentTime;
 };
 

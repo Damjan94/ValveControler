@@ -63,7 +63,8 @@ DateTime Utility::addMinutesToDate(int minutes, const DateTime& date)
 	return newTime;
 }
 
-void Utility::dateTimeFromBytes(DateTime& dt, const uint8_t* dateTimeBytes, int offset = 0)
+template< class T>
+void Utility::dateTimeFromBytes(DateTime& dt, const T dateTimeBytes, int offset = 0)
 {
 	dt.Second	= dateTimeBytes[offset + 0];
 	dt.Minute	= dateTimeBytes[offset + 1];
@@ -74,7 +75,8 @@ void Utility::dateTimeFromBytes(DateTime& dt, const uint8_t* dateTimeBytes, int 
 	dt.Year		= dateTimeBytes[offset + 6];
 }
 
-void Utility::dateTimeToBytes(const DateTime& dt, uint8_t* dateTimeBytes, int offset = 0)
+template< class T>
+void Utility::dateTimeToBytes(const DateTime& dt, T dateTimeBytes, int offset = 0)
 {
 	dateTimeBytes[offset + 0] = dt.Second;
 	dateTimeBytes[offset + 1] = dt.Minute;
@@ -84,3 +86,4 @@ void Utility::dateTimeToBytes(const DateTime& dt, uint8_t* dateTimeBytes, int of
 	dateTimeBytes[offset + 5] = dt.Month;
 	dateTimeBytes[offset + 6] = dt.Year;
 }
+

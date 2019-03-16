@@ -168,46 +168,33 @@ void Valve::switchValve()
     digitalWrite(m_data.valveNumber, HIGH);
 }
 
-/*
-@bytes the raw data we need to convert to our valve structure
-@isDataInNetworkByteOrder if set to true, call ntoh* functions where applicable
-*/
-void Valve::fromBytes(const uint8_t* bytes, bool isDataInNetworkByteOrder)
+Message* Valve::toMessage() const
 {
-    m_data.valveNumber				= bytes[0];
-	m_data.hour						= bytes[sizeof(m_data.valveNumber)];
-	m_data.minute					= bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour)];
-	m_data.daysOn					= bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute)];
-	m_data.timeCountdown			= *((uint16_t*) (&(bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)])));
-    
-    if(isDataInNetworkByteOrder)
-    {
-		m_data.timeCountdown = ntohs(m_data.timeCountdown);
-    }
+	Message *msg = new Message(Message::Type::request, Message::Action::valve, Message::Info::none, (uint8_t)Valve::NETWORK_SIZE);
 
+	uint16_t timeCountdown = htons(m_data.timeCountdown);
+
+	(*msg)[0]																			= m_data.valveNumber;
+	(*msg)[sizeof(m_data.valveNumber)]													= m_data.hour;
+	(*msg)[sizeof(m_data.valveNumber) + sizeof(m_data.hour)]							= m_data.minute;
+	(*msg)[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute)]	= m_data.daysOn;
+	memcpy(&(msg->m_data[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)]), &timeCountdown, sizeof(timeCountdown));
+
+	return msg;
 }
 
-/*
-@isDataInNetworkByteOrder if set to true, call ntoh* functions where applicable
-@return this function allocates memmory using malloc, and returns the pointer to the raw data. the caller should free() the buffer when done
-*/
-uint8_t* Valve::toBytes(bool isDataInNetworkByteOrder) const
+void Valve::fromMessage(const Message& msg)
 {
-    uint16_t timeCountdown = m_data.timeCountdown;
-    if(isDataInNetworkByteOrder == true)
-    {
-        timeCountdown = htons(timeCountdown);
-    }
-    
-    uint8_t* bytes = (uint8_t*)malloc(Valve::NETWORK_SIZE);
-    bytes[0] =                                                                                                      m_data.valveNumber;
-    bytes[sizeof(m_data.valveNumber)] =                                                                             m_data.hour;
-    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour)] =                                                       m_data.minute;
-    bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute)] =                               m_data.daysOn;
-	memcpy(&(bytes[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)]), &timeCountdown, sizeof(timeCountdown));
-    return bytes;
+	m_data.valveNumber =	msg[0];
+	m_data.hour =			msg[sizeof(m_data.valveNumber)];
+	m_data.minute =			msg[sizeof(m_data.valveNumber) + sizeof(m_data.hour)];
+	m_data.daysOn =			msg[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute)];
+	m_data.timeCountdown = *((uint16_t*)(&(msg[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)])));
+
+	m_data.timeCountdown = ntohs(m_data.timeCountdown);
 }
+
 bool Valve::isOn() const
 {
-    return m_turnedOnTime >= 0;
+	return m_turnedOnTime >= 0;
 }

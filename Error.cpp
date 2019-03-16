@@ -26,14 +26,29 @@ void Error::loadNextLogged()
 	}
 }
 
+void Error::setError(Error::Number num)
+{
+	setError(Error::Description{ num, currentTime });
+}
+
 void Error::setError(Error::Description err)
 {
 	currentError = err;
 }
 
+void Error::update(const DateTime& dt)
+{
+	currentTime = dt;
+}
+
 void Error::log()
 {
 	Error::log(currentError);
+}
+
+void Error::log(Error::Number num)
+{
+	Error::log(Error::Description{ num, currentTime });
 }
 
 void Error::log(Error::Description err)
@@ -42,12 +57,13 @@ void Error::log(Error::Description err)
 	Error::clear();
 }
 
-void Error::toMessage(NetworkManager::Message& msg)
+Message* Error::toMessage()
 {
-	msg.info = NetworkManager::Info::error;
-	msg.error = Error::currentError;
+	Message* msg = new Message(Message::Type::info, Message::Action::none, Message::Info::error, sizeof(Error::Description::number) + Utility::DATE_TIME_NETWORK_SIZE);
+	
+	(*msg)[0] = (uint8_t)Error::currentError.number;
 
-	Utility::dateTimeToBytes
+	Utility::dateTimeToBytes(Error::currentError.time, msg, 1);
 }
 
 void Error::clear()

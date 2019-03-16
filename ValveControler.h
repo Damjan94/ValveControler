@@ -11,11 +11,13 @@ protected:
     enum HBridgeState:uint8_t
     {
         close   = HIGH, //set this hbridge to close the valve
-        open    = LOW   //---------||--------- open the valve
+        open    = LOW   //---------||-------- open the valve
     };
 
+public:
     const static long RELAY_SETTLE_TIME = 10;
 	const static int MAX_VALVES = 50;
+protected:
 
     int8_t m_hBridgePin[2];
     
@@ -39,8 +41,8 @@ public:
     void setValve(size_t index, const Valve& valve);
     void addValve(const Valve& valve);
    
-    const Valve* getValves() const;
-    const Valve* getValve(size_t index) const;
+    const Valve* const getValves() const;
+    const Valve* const getValve(size_t index) const;
     size_t getValveCount() const;
 
     void clear();
