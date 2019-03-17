@@ -10,6 +10,9 @@ DS3231_Simple   myClock;
 ValveController myValveController;
 NetworkManager  myNetworkManager(myClock, myValveController);
 
+DS3231_Simple& Error::DSD_Clock = myClock;
+DateTime global_date_time;
+DateTime& Error::currentTime = global_date_time;//TODO will this update automatically?
 const int BLUETOOTH_INTERRUPT_PIN = 3;
 const int ALARM_INTERRUPT_PIN = 2;
 
@@ -68,7 +71,7 @@ void loop()
 	const DateTime& dt = myClock.read();
 
 	Error::clear();
-	Error::update(dt);
+	//Error::update(dt);
 	
     if(isBluetoothConnected)
     {

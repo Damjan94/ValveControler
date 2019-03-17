@@ -1,6 +1,7 @@
 #include "ValveControler.h"
 #include <limits.h>
-	
+#include "Utility.h"
+
 ValveController::ValveController() : m_hBridgePin{4, 13}//shouldn't this be set in the startup function?
 {
     m_isHbridgeSet = true;
@@ -107,7 +108,7 @@ const Valve* const ValveController::getValves() const
 
 const Valve* const ValveController::getValve(size_t index) const
 {
-    if(m_valveCount < index)//FIXME isnt this supposed to be > instead???
+    if(m_valveCount <= index)//FIXME isnt this supposed to be > instead???
         return nullptr;
     return &m_valves[index];
 }   

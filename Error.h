@@ -1,5 +1,6 @@
 #pragma once
 #include <DS3231_Simple.h>
+#include "Message.h"
 
 class Error
 {
@@ -11,7 +12,7 @@ public:
 		invalidCrc						= 0x3,
 		couldNotReadAllBytes			= 0x4,
 		tooManyValvesToReceive			= 0x5,
-		invalidMessageProtocolVersion	= 0xFF
+		invalidMessageProtocol			= 0xFF
 	};
 	struct Description
 	{
@@ -19,13 +20,15 @@ public:
 		DateTime time;
 	};
 
+	static DS3231_Simple& DSD_Clock;
+
 	static bool hasError();
 	static Error::Description getError();
 
 	static void setError(Error::Number num);
 	static void setError(Error::Description num);
 
-	static void update(const DateTime& dt);
+	//static void update(const DateTime& dt);
 
 	static void log();
 	static void log(Error::Number num);

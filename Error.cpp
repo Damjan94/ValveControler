@@ -1,5 +1,5 @@
 #include "Error.h"
-
+#include "Utility.h"
 Error::Description Error::currentError{ Error::Number::none, DS3231_Simple::DateTime{0} };
 
 bool Error::hasError()
@@ -19,7 +19,7 @@ void Error::loadNextLogged()
 		log();//this works coz read log reads the oldest log...
 		clear();
 	}
-	uint8_t returnCode = myClock.readLog(currentError.time, currentError.number);
+	uint8_t returnCode = DSD_Clock.readLog(currentError.time, (uint8_t*)&currentError.number, sizeof(currentError.number));
 	if (returnCode != 1)//1 means the function compleated succsesfully, 0 means that it failed
 	{
 
@@ -35,12 +35,12 @@ void Error::setError(Error::Description err)
 {
 	currentError = err;
 }
-
+/*
 void Error::update(const DateTime& dt)
 {
 	currentTime = dt;
 }
-
+*/
 void Error::log()
 {
 	Error::log(currentError);
@@ -53,7 +53,7 @@ void Error::log(Error::Number num)
 
 void Error::log(Error::Description err)
 {
-	myClock.writeLog(err.time, (uint8_t)err.number);
+	DSD_Clock.writeLog(err.time, err.number);
 	Error::clear();
 }
 
@@ -63,7 +63,7 @@ Message* Error::toMessage()
 	
 	(*msg)[0] = (uint8_t)Error::currentError.number;
 
-	Utility::dateTimeToBytes(Error::currentError.time, msg, 1);
+	Utility::dateTimeToBytes(Error::currentError.time, *msg, 1);
 }
 
 void Error::clear()

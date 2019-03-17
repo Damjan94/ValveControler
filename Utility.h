@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DS3231_Simple.h"
+#include "Message.h"
 namespace Utility
 {
 	#define htons(x) ( (((x)<<8)&0xFF00) | (((x)>>8)&0xFF) )
@@ -18,8 +20,8 @@ namespace Utility
 
 	const static size_t DATE_TIME_NETWORK_SIZE = sizeof(DateTime::Second) + sizeof(DateTime::Minute) + sizeof(DateTime::Hour) + sizeof(DateTime::Dow) + sizeof(DateTime::Day) + sizeof(DateTime::Month) + sizeof(DateTime::Year);
 	static_assert(DATE_TIME_NETWORK_SIZE != 6, "DateTime should be 6");
-	template<class T>
-	void dateTimeFromBytes(DateTime& dt, const T bytes, int offset = 0);
-	template< class T>
-	void dateTimeToBytes(const DateTime& dt, T bytes, int offset = 0);
+	//template<class T>
+	void dateTimeFromBytes(DateTime& dt, const Message& bytes, int offset = 0);
+	//template< class T>
+	void dateTimeToBytes(const DateTime& dt, Message& bytes, int offset = 0);
 }

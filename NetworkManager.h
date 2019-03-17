@@ -14,7 +14,8 @@ public:
     void update(const DateTime& dt);
 private:
 
+	void logInvalidPacket();
+
     DS3231_Simple&		clock;
 	ValveController&	valveControler;
-	bool				deviceSupportsUs;
 };

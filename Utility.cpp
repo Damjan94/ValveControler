@@ -1,6 +1,7 @@
 #include "Utility.h"
+#include "Error.h"
 #include <time.h>
-
+#include <Arduino.h>
 size_t Utility::readBytes(size_t count, uint8_t* data)
 {
 	Error::clear();
@@ -63,8 +64,8 @@ DateTime Utility::addMinutesToDate(int minutes, const DateTime& date)
 	return newTime;
 }
 
-template< class T>
-void Utility::dateTimeFromBytes(DateTime& dt, const T dateTimeBytes, int offset = 0)
+//template< class T>
+void Utility::dateTimeFromBytes(DateTime& dt, const Message& dateTimeBytes, int offset = 0)
 {
 	dt.Second	= dateTimeBytes[offset + 0];
 	dt.Minute	= dateTimeBytes[offset + 1];
@@ -75,8 +76,8 @@ void Utility::dateTimeFromBytes(DateTime& dt, const T dateTimeBytes, int offset 
 	dt.Year		= dateTimeBytes[offset + 6];
 }
 
-template< class T>
-void Utility::dateTimeToBytes(const DateTime& dt, T dateTimeBytes, int offset = 0)
+//template< class T>
+void Utility::dateTimeToBytes(const DateTime& dt, Message& dateTimeBytes, int offset = 0)
 {
 	dateTimeBytes[offset + 0] = dt.Second;
 	dateTimeBytes[offset + 1] = dt.Minute;

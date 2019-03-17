@@ -1,6 +1,7 @@
 #include "Message.h"
 #include "Utility.h"
-
+#include "Error.h"
+#include "CRC32.h"
 
 Message::Message() : Message(Type::none, Action::none, Info::none)
 {
@@ -60,8 +61,6 @@ void Message::send() const
 
 void Message::receive()
 {
-	Error::clear();
-
 	uint32_t receivedCrc32;
 	Utility::readBytes(sizeof(receivedCrc32), (uint8_t*)(&receivedCrc32));
 	if (Error::hasError())
@@ -77,7 +76,7 @@ void Message::receive()
 	//we hope that the received message is valid 
 	if (rawBytes[0] != Message::PROTOCOL_VERSION)
 	{
-		Error::setError(Error::Number::invalidMessageProtocolVersion);
+		Error::setError(Error::Number::invalidMessageProtocol);
 		return;
 	}
 

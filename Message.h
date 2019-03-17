@@ -1,4 +1,7 @@
 #pragma once
+
+#include <stdint.h>
+#include <Arduino.h>
 class Message
 {
 public:

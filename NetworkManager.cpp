@@ -2,23 +2,27 @@
 #include <CRC32.h>
 #include <DS3231_Simple.h>
 #include "Utility.h"
+#include "Error.h"
 
 NetworkManager::NetworkManager(DS3231_Simple& myClock, ValveController& myValveControler) :
-	clock{ myClock }, valveControler{ myValveControler }, deviceSupportsUs{ false }
+	clock{ myClock }, valveControler{ myValveControler }
 {
 
 }
 
 void NetworkManager::update(const DateTime& dt)
 {
-	if (!deviceSupportsUs)
-		return;
-    if(!Serial.available())
+    if(!Serial.available())//TODO check if there is enough data for a single message
         return;
-    //check the stream for data
 	
+	Error::clear();
+
 	Message msg;
 	msg.receive();
+
+	if (Error::hasError())
+		return;
+
     switch(msg.m_type)
     {
 	case Message::Type::command:
@@ -27,9 +31,6 @@ void NetworkManager::update(const DateTime& dt)
             {
                 case Message::Action::valve:
                 {
-                    valveControler.clear();
-					Error::clear();
-
 					if (msg[0] > ValveController::MAX_VALVES - 1)
 					{
 						Error::setError(Error::Number::tooManyValvesToReceive);
@@ -40,11 +41,11 @@ void NetworkManager::update(const DateTime& dt)
 						break;
 					}
 
+					valveControler.clear();
                     for(size_t i = 0; i < msg[0]; ++i)
                     {
                         Message msg(Message::Type::info, Message::Action::none, Message::Info::readyToReceive);
 						msg.send();
-						Error::clear();
 						msg.receive();
 						if (Error::hasError())
 							break;//FIXME without clearing the remainder of the buffer, the input stream has garbage data, and is useless
@@ -56,7 +57,6 @@ void NetworkManager::update(const DateTime& dt)
                 }
                 case Message::Action::time:
                 {
-					Error::clear();
 					DateTime dt;
 					Utility::dateTimeFromBytes(dt, msg);
 					if (Error::hasError())
@@ -73,7 +73,7 @@ void NetworkManager::update(const DateTime& dt)
                 }
                 default:
                 {
-                    //TODO invalid Packet
+					logInvalidPacket();
                     break;
                 }
             }
@@ -85,7 +85,7 @@ void NetworkManager::update(const DateTime& dt)
             {
                 case Message::Action::valve:
                 {
-					//I put this in different scope, so I can reuse the name msg, later down the line(bad practice?)
+					//I put this in different scope, so I can reuse the name msg (bad practice?)
 					{
 						Message msg(Message::Type::command, Message::Action::valve, Message::Info::none, 1);
 						msg[0] = valveControler.getValveCount();
@@ -126,7 +126,7 @@ void NetworkManager::update(const DateTime& dt)
                 {
                     float temp = clock.getTemperatureFloat();
 					const static size_t SPACE_FOR_CHAR = 10; //TODO figure out exactly how much space I need...
-					char temperatureChar[SPACE_FOR_CHAR]{ 0 };
+					char temperatureChar[SPACE_FOR_CHAR]{ 'G' };
 					dtostrf(temp, 2, 2, temperatureChar);//FIXME dtostrf uses too much memorry(so, I've heard)
 					Message temperatureMsg(Message::Type::command, Message::Action::temperatureFloat, Message::Info::none, sizeof(temp), temperatureChar);
 					temperatureMsg.send();
@@ -142,7 +142,7 @@ void NetworkManager::update(const DateTime& dt)
                 default:
                 {
                     break;
-                    //TODO invalid packet
+					logInvalidPacket();
                 }
             }
             break;
@@ -158,8 +158,13 @@ void NetworkManager::update(const DateTime& dt)
         }
         default:
         {
-            //TODO not a valid packet
+			logInvalidPacket();
             break;
         }
     }
+}
+
+void NetworkManager::logInvalidPacket()//this is here, in case I want to do something else with invalid packets
+{
+	Error::log(Error::Number::invalidMessageProtocol);
 }
