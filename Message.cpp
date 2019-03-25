@@ -3,6 +3,8 @@
 #include "Error.h"
 #include "CRC32.h"
 
+uint8_t Message::errorReturn = 0x0;
+
 Message::Message() : Message(Type::none, Action::none, Info::none)
 {
 
@@ -29,6 +31,7 @@ uint8_t& Message::operator[](const size_t& i)
 {
 	if (m_data != nullptr && i < m_size)
 		return m_data[i];
+	return errorReturn;
 }
 
 const uint8_t& Message::operator[](const size_t& i) const

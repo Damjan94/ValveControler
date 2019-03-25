@@ -1,6 +1,6 @@
 #include "Error.h"
 #include "Utility.h"
-Error::Description Error::currentError{ Error::Number::none, DS3231_Simple::DateTime{0} };
+Error::Description Error::currentError{ Error::Number::none, DS3231_Simple::DateTime{0, 0, 0, 0, 0, 0, 0} };
 
 bool Error::hasError()
 {
@@ -64,10 +64,11 @@ Message* Error::toMessage()
 	(*msg)[0] = (uint8_t)Error::currentError.number;
 
 	Utility::dateTimeToBytes(Error::currentError.time, *msg, 1);
+	return msg;
 }
 
 void Error::clear()
 {
 	Error::currentError.number	= Error::Number::none;
-	Error::currentError.time	= DateTime{ 0 };
+	Error::currentError.time	= DateTime{0, 0, 0, 0, 0, 0, 0};
 }

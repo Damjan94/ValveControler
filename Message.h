@@ -35,6 +35,12 @@ public:
 	Message(Type type, Action action, Info info, uint8_t size = 0, const void* bytes = nullptr);
 	~Message();
 
+	//returned if the operator[] index is out of bounds, or if m_data is not initilized
+	//it is better to return false data, than to terminate the program.
+	//TODO maybe make sure that m_data is always initilized?
+	static uint8_t errorReturn;
+	//returns m_data[i], if i < m_size, and m_data is not null
+	//otherwise returns errorReturn.
 	uint8_t& operator[](const size_t& i);
 	const uint8_t& operator[](const size_t& i) const;
 

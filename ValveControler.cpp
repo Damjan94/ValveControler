@@ -101,12 +101,12 @@ size_t ValveController::getValveCount() const
     return m_valveCount;
 }
 
-const Valve* const ValveController::getValves() const
+const Valve* ValveController::getValves() const
 {
     return m_valves;
 }
 
-const Valve* const ValveController::getValve(size_t index) const
+const Valve* ValveController::getValve(size_t index) const
 {
     if(m_valveCount <= index)//FIXME isnt this supposed to be > instead???
         return nullptr;

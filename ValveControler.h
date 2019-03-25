@@ -41,8 +41,8 @@ public:
     void setValve(size_t index, const Valve& valve);
     void addValve(const Valve& valve);
    
-    const Valve* const getValves() const;
-    const Valve* const getValve(size_t index) const;
+    const Valve* getValves() const;
+    const Valve* getValve(size_t index) const;
     size_t getValveCount() const;
 
     void clear();

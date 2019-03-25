@@ -135,7 +135,7 @@ void NetworkManager::update(const DateTime& dt)
                 case Message::Action::hBridgePin:
                 {
                     int8_t* hbridgePins = valveControler.getHBridgePin();//this should return 2 hbridge pins
-					Message hBridgeMsg(Message::Type::command, Message::Action::hBridgePin, Message::Info::none, sizeof(hbridgePins[0] * 2, hbridgePins));
+					Message hBridgeMsg(Message::Type::command, Message::Action::hBridgePin, Message::Info::none, sizeof(hbridgePins[0] * 2), hbridgePins);
 					hBridgeMsg.send();
                     break;
                 }
