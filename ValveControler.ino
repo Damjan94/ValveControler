@@ -11,8 +11,7 @@ ValveController myValveController;
 NetworkManager  myNetworkManager(myClock, myValveController);
 
 DS3231_Simple& Error::DSD_Clock = myClock;
-DateTime global_date_time;
-DateTime& Error::currentTime = global_date_time;//TODO will this update automatically?
+
 const int BLUETOOTH_INTERRUPT_PIN = 3;
 const int ALARM_INTERRUPT_PIN = 2;
 
@@ -73,7 +72,8 @@ void loop()
 	const DateTime& dt = myClock.read();
 
 	Error::clear();
-	
+	Error::setCurrentTime(dt);
+
     if(isBluetoothConnected)
     {
 		//if we are not ignoring the device, try to read any sent bytes, otherwise, empty the buffer
@@ -116,12 +116,14 @@ void loop()
         DateTime alarmDate = myValveController.getSoonestActionDate(dt);
         if(myClock.compareTimestamps(alarmDate, dt) > 0 )
         {
+			myNetworkManager.setLastLongSleep(dt);
             myClock.disableAlarms();
             myClock.setAlarm(alarmDate, DS3231_Simple::ALARM_MATCH_MINUTE_HOUR_DATE);
             LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);//FIXME apparently the arduino isn't sleeping
         }
 		
     }
+	myNetworkManager.setLastShortSleep(dt);
     LowPower.idle(SLEEP_120MS, ADC_ON, TIMER2_ON, TIMER1_ON, TIMER0_ON, SPI_ON, USART0_ON, TWI_ON);
 }
 

@@ -28,13 +28,15 @@ public:
 	static void setError(Error::Number num);
 	static void setError(Error::Description num);
 
+	static void setCurrentTime(const DateTime& dt);
+
 	static void log();
 	static void log(Error::Number num);
 	static void log(Error::Description error);
 	/*
 	gets the oldest log, and deletes it from storage.
 	@return returns the error number that was logged.
-	returns Error::Number::none, if there are no stored logs
+		or Error::Number::none, if there are no stored logs
 	*/
 	static void loadNextLogged();
 
@@ -44,6 +46,6 @@ public:
 
 protected:
 	static Description currentError;
-	static DateTime& currentTime;
+	static DateTime currentTime;
 };
 

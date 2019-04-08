@@ -152,6 +152,14 @@ void NetworkManager::update(const DateTime& dt)
 					doneSendingError.send();
 					break;
 				}
+				case Message::Action::sleepTime:
+				{
+					Message sleepMessage(Message::Type::command, Message::Action::sleepTime, Message::Info::none, Utility::DATE_TIME_NETWORK_SIZE*2);
+					Utility::dateTimeToBytes(m_shortSleepTime, sleepMessage, 0);
+					Utility::dateTimeToBytes(m_longSleepTime, sleepMessage, Utility::DATE_TIME_NETWORK_SIZE);
+					sleepMessage.send();
+					break;
+				}
                 default:
                 {
                     break;
@@ -190,6 +198,16 @@ void NetworkManager::update(const DateTime& dt)
 			break;
 		}
     }
+}
+
+void NetworkManager::setLastShortSleep(const DateTime & shortSleepTime)
+{
+	m_shortSleepTime = shortSleepTime;
+}
+
+void NetworkManager::setLastLongSleep(const DateTime & longSleepTime)
+{
+	m_longSleepTime = longSleepTime;
 }
 
 void NetworkManager::logInvalidPacket()//this is here, in case I want to do something else with invalid packets

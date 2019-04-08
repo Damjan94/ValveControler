@@ -20,7 +20,8 @@ public:
 		temperature			= 0x3,
 		temperatureFloat	= 0x4,
 		hBridgePin			= 0x5,
-		error				= 0x6
+		error				= 0x6,
+		sleepTime			= 0x7
 	};
 	enum class Info : uint8_t
 	{

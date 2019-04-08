@@ -67,7 +67,6 @@ DateTime Utility::addMinutesToDate(int minutes, const DateTime& date)
 	return newTime;
 }
 
-//template< class T>
 void Utility::dateTimeFromBytes(DateTime& dt, const Message& dateTimeBytes, int offset)
 {
 	dt.Second	= dateTimeBytes[offset + 0];
@@ -79,7 +78,6 @@ void Utility::dateTimeFromBytes(DateTime& dt, const Message& dateTimeBytes, int 
 	dt.Year		= dateTimeBytes[offset + 6];
 }
 
-//template< class T>
 void Utility::dateTimeToBytes(const DateTime& dt, Message& dateTimeBytes, int offset)
 {
 	dateTimeBytes[offset + 0] = dt.Second;

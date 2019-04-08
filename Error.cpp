@@ -1,6 +1,7 @@
 #include "Error.h"
 #include "Utility.h"
 Error::Description Error::currentError{ Error::Number::none, DS3231_Simple::DateTime{0, 0, 0, 0, 0, 0, 0} };
+DateTime Error::currentTime{ 0, 0, 0, 0, 0, 0, 0};
 
 bool Error::hasError()
 {
@@ -35,6 +36,11 @@ void Error::setError(Error::Number num)
 void Error::setError(Error::Description err)
 {
 	currentError = err;
+}
+
+void Error::setCurrentTime(const DateTime & dt)
+{
+	currentTime = dt;
 }
 
 void Error::log()
