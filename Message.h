@@ -7,28 +7,27 @@ class Message
 public:
 	enum class Type : uint8_t
 	{
-		none = 0x0,
+		none	= 0x0,
 		command = 0x1,  //Arduino is being commanded to do something(set valves, or time)
 		request = 0x2,  //Arduino is being asked to provide the value (H bridge pins, temperature,...)
-		info = 0x3   //some info message
+		info	= 0x3   //some info message
 	};
 	enum class Action : uint8_t
 	{
-		none = 0x0,
-		valve = 0x1,
-		time = 0x2,
-		temperature = 0x3,
-		temperatureFloat = 0x4,
-		hBridgePin = 0x5,
+		none				= 0x0,
+		valve				= 0x1,
+		time				= 0x2,
+		temperature			= 0x3,
+		temperatureFloat	= 0x4,
+		hBridgePin			= 0x5,
+		error				= 0x6
 	};
 	enum class Info : uint8_t
 	{
-		none = 0x0,
-		nominal = 0x1,
-		error = 0x2,
-		readyToSend = 0x3,
-		readyToReceive = 0x4,
-		handshake = 0x5
+		none			= 0x0,
+		nominal			= 0x1,
+		readyToSend		= 0x2,
+		readyToReceive	= 0x3,
 	};
 
 	Message();
@@ -50,6 +49,7 @@ public:
 	uint8_t		m_size;//in bytes
 	uint8_t*	m_data;
 
+	//TODO redesign, so that the header has it's own crc, and data should have it's own crc
 	void send() const;
 	void receive();
 

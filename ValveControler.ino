@@ -17,7 +17,6 @@ const int BLUETOOTH_INTERRUPT_PIN = 3;
 const int ALARM_INTERRUPT_PIN = 2;
 
 volatile bool isBluetoothConnected;
-volatile bool isFirstPacketSent;
 volatile uint8_t connectedDeviceErrorCount;
 
 bool ignoreTheDevice;
@@ -25,13 +24,15 @@ bool ignoreTheDevice;
 volatile bool isAlarmActive;
 
 #ifdef DEBUG
+bool alter = false;
+void alternate();
 String dateToString(const DateTime& dt);
 #endif //DEBUG
 
 void bluetoothISR()
 {
     isBluetoothConnected = !isBluetoothConnected;
-	isFirstPacketSent = false;
+	ignoreTheDevice = false;
 	connectedDeviceErrorCount = 0;
 }
 
@@ -52,8 +53,7 @@ void setup()
     pinMode(0, INPUT);
     pinMode(1, INPUT);
     
-    isBluetoothConnected = digitalRead(BLUETOOTH_INTERRUPT_PIN) == HIGH;
-	isFirstPacketSent = false;
+	isBluetoothConnected = digitalRead(BLUETOOTH_INTERRUPT_PIN) == HIGH;
 	connectedDeviceErrorCount = 0;
 
 	ignoreTheDevice = false;
@@ -62,30 +62,20 @@ void setup()
     
     attachInterrupt(digitalPinToInterrupt(BLUETOOTH_INTERRUPT_PIN), bluetoothISR, CHANGE);
     attachInterrupt(digitalPinToInterrupt(ALARM_INTERRUPT_PIN), alarmISR, CHANGE);
+
 	//the delys are here in case arduino has not finished setting up yet...
 	Utility::delay(1000);
 	Utility::delay(100);
 }
+
 void loop()
 {
 	const DateTime& dt = myClock.read();
 
 	Error::clear();
-	//Error::update(dt);
 	
     if(isBluetoothConnected)
     {
-		//the first packet tells android what version of the app we are using
-		if (!isFirstPacketSent)
-		{
-			Message msg(Message::Type::info, Message::Action::none, Message::Info::nominal);
-			msg.send();
-
-			//update the state variables, since this is a new connection
-			isFirstPacketSent = true;
-			ignoreTheDevice = false;
-			connectedDeviceErrorCount = 0;
-		}
 		//if we are not ignoring the device, try to read any sent bytes, otherwise, empty the buffer
 		if (!ignoreTheDevice)
 		{
@@ -98,32 +88,39 @@ void loop()
 				Serial.read();
 			}
 		}
-
-		//only errors are network related, so we just log them, and if there's a lot of em, we ignore the device
-		if (Error::hasError())
-		{
-			Error::log();
-			Error::clear();
-			++connectedDeviceErrorCount;
-			if (connectedDeviceErrorCount > 3)
-			{
-				ignoreTheDevice = true;
-			}
     }
-    
-    myValveController.update(dt);
 
-	//go to sleep logic
+	if (Error::hasError())
+	{
+		Error::log();
+		if (isBluetoothConnected)
+		{
+			Message* errorMsg = Error::toMessage();
+			errorMsg->send();
+			delete errorMsg;
+		}
+		Error::clear();
+		++connectedDeviceErrorCount;
+		if (connectedDeviceErrorCount > 3)
+		{
+			ignoreTheDevice = true;
+		}
 	}
+
+    myValveController.update(dt);
+	
+	//go to sleep logic
     if(!isBluetoothConnected && !isAlarmActive)
     {
+		
         DateTime alarmDate = myValveController.getSoonestActionDate(dt);
         if(myClock.compareTimestamps(alarmDate, dt) > 0 )
         {
             myClock.disableAlarms();
             myClock.setAlarm(alarmDate, DS3231_Simple::ALARM_MATCH_MINUTE_HOUR_DATE);
-            LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+            LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);//FIXME apparently the arduino isn't sleeping
         }
+		
     }
     LowPower.idle(SLEEP_120MS, ADC_ON, TIMER2_ON, TIMER1_ON, TIMER0_ON, SPI_ON, USART0_ON, TWI_ON);
 }
@@ -161,6 +158,24 @@ String dateToString(const DateTime& dt)
     str += F("Second: ");
     str += dt.Second;
     return str;
+}
+
+void alternate()
+{
+	Utility::delay(1000);
+	if (alter == true)
+	{
+		digitalWrite(4, HIGH);
+		digitalWrite(13, LOW);
+		alter = false;
+	}
+	else
+	{
+		digitalWrite(4, LOW);
+		digitalWrite(13, HIGH);
+		alter = true;
+	}
+	Utility::delay(1000);
 }
 #endif //DEBUG
 

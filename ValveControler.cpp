@@ -23,7 +23,7 @@ bool ValveController::setHBridge(HBridgeState state)
     return true;
 }
 
-int8_t ValveController::getHBridgeState()
+ValveController::HBridgeState ValveController::getHBridgeState()
 {
     return m_hBridgeState;
 }
@@ -62,7 +62,7 @@ void ValveController::update(const DateTime& dt)
         }
     }
 
-    if(getHBridgeState() != HIGH)
+    if(getHBridgeState() != HBridgeState::close)
     {
         setHBridge(HBridgeState::close);
     }
@@ -70,6 +70,11 @@ void ValveController::update(const DateTime& dt)
 
 DateTime ValveController::getSoonestActionDate(const DateTime& dt) const
 {
+	if (m_valveCount == 0)
+	{
+		return Utility::addMinutesToDate(5, dt);//add 5 minutes to date, to make arduino sleep
+	}
+
     int soonestAction = INT_MAX;
     for(int i = 0; i < m_valveCount; ++i)
     {

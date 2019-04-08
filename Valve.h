@@ -15,8 +15,9 @@ public:
         uint8_t daysOn;//days are indexed from 1 to 7(sun-sat)
         uint16_t timeCountdown;
     };
+	
 private:
-    Valve(int8_t valveNumber, uint8_t hour, uint8_t minute, uint8_t daysOn, uint16_t timeCountdown);
+	Valve(int8_t valveNumber, uint8_t hour, uint8_t minute, uint8_t daysOn, uint16_t timeCountdown);
     Valve::Data m_data;
     int16_t m_turnedOnTime;//negative means that the valve is off, positive value indicates what minute in the week did it turn on
 

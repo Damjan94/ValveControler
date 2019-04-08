@@ -22,7 +22,8 @@ void Error::loadNextLogged()
 	uint8_t returnCode = DSD_Clock.readLog(currentError.time, (uint8_t*)&currentError.number, sizeof(currentError.number));
 	if (returnCode != 1)//1 means the function compleated succsesfully, 0 means that it failed
 	{
-
+		memset(&currentError, 0, sizeof(currentError));
+		currentError.number = Error::Number::none;//just in case we later change none to be something other than 0(used in hasError() function)... 
 	}
 }
 
@@ -35,12 +36,7 @@ void Error::setError(Error::Description err)
 {
 	currentError = err;
 }
-/*
-void Error::update(const DateTime& dt)
-{
-	currentTime = dt;
-}
-*/
+
 void Error::log()
 {
 	Error::log(currentError);
@@ -59,7 +55,7 @@ void Error::log(Error::Description err)
 
 Message* Error::toMessage()
 {
-	Message* msg = new Message(Message::Type::info, Message::Action::none, Message::Info::error, sizeof(Error::Description::number) + Utility::DATE_TIME_NETWORK_SIZE);
+	Message* msg = new Message(Message::Type::command, Message::Action::error, Message::Info::none, sizeof(Error::Description::number) + Utility::DATE_TIME_NETWORK_SIZE);
 	
 	(*msg)[0] = (uint8_t)Error::currentError.number;
 

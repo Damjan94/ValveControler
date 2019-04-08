@@ -2,6 +2,7 @@
 #include "Error.h"
 #include <time.h>
 #include <Arduino.h>
+
 size_t Utility::readBytes(size_t count, uint8_t* data)
 {
 	Error::clear();
@@ -18,7 +19,9 @@ size_t Utility::readBytes(size_t count, uint8_t* data)
 			break;
 		}
 		++iterationCount;
-		//TODO maybe sleep for a while?
+
+		if (readBytes < count)
+			delay(DEFAULT_NETWORK_WAIT_TIME);
 	}
 	return readBytes;
 }

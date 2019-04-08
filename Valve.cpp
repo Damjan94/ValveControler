@@ -65,7 +65,6 @@ bool Valve::checkTurnOff(const DateTime& dt) const
     {
         return false;//no need to turn it off, if it is already off
     }
-    
     return checkTurnOffTime(dt) <= 0;
 }
 
@@ -96,7 +95,6 @@ int Valve::checkTurnOffTime(const DateTime& dt) const
     {
         num = MINUTES_IN_WEEK + num;
     }
-    
     return m_turnedOnTime - num;
 }
 
@@ -122,7 +120,6 @@ int Valve::checkTurnOnTime(const DateTime& dt) const
             {
                 soonestTurnOn = turnOnDelay;
             }
-			//this part gets executed
         }
     }
     return soonestTurnOn;
@@ -178,7 +175,7 @@ Message* Valve::toMessage() const
 	(*msg)[sizeof(m_data.valveNumber)]													= m_data.hour;
 	(*msg)[sizeof(m_data.valveNumber) + sizeof(m_data.hour)]							= m_data.minute;
 	(*msg)[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute)]	= m_data.daysOn;
-	memcpy(&(msg->m_data[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)]), &timeCountdown, sizeof(timeCountdown));
+	memcpy(&((*msg)[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)]), &timeCountdown, sizeof(timeCountdown));
 
 	return msg;
 }
@@ -189,9 +186,11 @@ void Valve::fromMessage(const Message& msg)
 	m_data.hour =			msg[sizeof(m_data.valveNumber)];
 	m_data.minute =			msg[sizeof(m_data.valveNumber) + sizeof(m_data.hour)];
 	m_data.daysOn =			msg[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute)];
-	m_data.timeCountdown = *((uint16_t*)(&(msg[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)])));
-
+	
+	memcpy(&m_data.timeCountdown, &(msg[sizeof(m_data.valveNumber) + sizeof(m_data.hour) + sizeof(m_data.minute) + sizeof(m_data.daysOn)]), sizeof(m_data.timeCountdown));
 	m_data.timeCountdown = ntohs(m_data.timeCountdown);
+
+	validate();
 }
 
 bool Valve::isOn() const

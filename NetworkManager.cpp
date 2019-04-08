@@ -12,7 +12,7 @@ NetworkManager::NetworkManager(DS3231_Simple& myClock, ValveController& myValveC
 
 void NetworkManager::update(const DateTime& dt)
 {
-    if(!Serial.available())//TODO check if there is enough data for a single message
+    if(Serial.available() < Message::NETWORK_SIZE)
         return;
 	
 	Error::clear();
@@ -25,7 +25,7 @@ void NetworkManager::update(const DateTime& dt)
 
     switch(msg.m_type)
     {
-	case Message::Type::command:
+		case Message::Type::command:
         {
             switch(msg.m_action)
             {
@@ -88,7 +88,7 @@ void NetworkManager::update(const DateTime& dt)
 					//I put this in different scope, so I can reuse the name msg (bad practice?)
 					{
 						Message msg(Message::Type::command, Message::Action::valve, Message::Info::none, 1);
-						msg[0] = valveControler.getValveCount();
+						msg[0] = (uint8_t)valveControler.getValveCount();
 						msg.send();
 					}
                     //no space in ram to request a byte array from valve controller
@@ -103,13 +103,12 @@ void NetworkManager::update(const DateTime& dt)
 						Message* valveMsg = v->toMessage();
 						valveMsg->send();
 						delete valveMsg;
-                        //arduino doesnt wait for the phone to send "ready to receive"
+                        //arduino doesn't wait for the phone to send "ready to receive"
                     }
                     break;
                 }
                 case Message::Action::time:
                 {
-                    //sendTime(dt);
 					Message dateMsg(Message::Type::command, Message::Action::time, Message::Info::none, Utility::DATE_TIME_NETWORK_SIZE);
 					Utility::dateTimeToBytes(dt, dateMsg);
 					dateMsg.send();
@@ -126,9 +125,10 @@ void NetworkManager::update(const DateTime& dt)
                 {
                     float temp = clock.getTemperatureFloat();
 					const static size_t SPACE_FOR_CHAR = 10; //TODO figure out exactly how much space I need...
-					char temperatureChar[SPACE_FOR_CHAR]{ 'G' };
+					char temperatureChar[SPACE_FOR_CHAR];
+					memset(temperatureChar, 0, SPACE_FOR_CHAR);
 					dtostrf(temp, 2, 2, temperatureChar);//FIXME dtostrf uses too much memorry(so, I've heard)
-					Message temperatureMsg(Message::Type::command, Message::Action::temperatureFloat, Message::Info::none, sizeof(temp), temperatureChar);
+					Message temperatureMsg(Message::Type::command, Message::Action::temperatureFloat, Message::Info::none, SPACE_FOR_CHAR, temperatureChar);
 					temperatureMsg.send();
                     break;
                 }
@@ -139,6 +139,19 @@ void NetworkManager::update(const DateTime& dt)
 					hBridgeMsg.send();
                     break;
                 }
+				case Message::Action::error:
+				{
+					do
+					{
+						Error::loadNextLogged();
+						Message* msg = Error::toMessage();
+						msg->send();
+						delete msg;
+					} while (!Error::hasError());
+					Message doneSendingError(Message::Type::info, Message::Action::error, Message::Info::nominal);
+					doneSendingError.send();
+					break;
+				}
                 default:
                 {
                     break;
@@ -152,15 +165,30 @@ void NetworkManager::update(const DateTime& dt)
 			switch (msg.m_info)
 			{
 				default:
+				{
+					logInvalidPacket();
 					break;
+				}
 			}
             break;
         }
-        default:
-        {
+		case Message::Type::none:
+		{
+			if (msg.m_action == Message::Action::none && msg.m_info == Message::Info::none)
+			{
+				msg.send();//echo back our protocol version
+			}
+			else
+			{
+				logInvalidPacket();
+			}
+			break;
+		}
+		default:
+		{
 			logInvalidPacket();
-            break;
-        }
+			break;
+		}
     }
 }
 

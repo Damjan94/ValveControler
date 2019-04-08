@@ -13,6 +13,8 @@ namespace Utility
 					   ((x)>>24 & 0x000000FFUL) )
 	#define ntohl(x) htonl(x)
 
+	const static unsigned long DEFAULT_NETWORK_WAIT_TIME = 50;//50 ms;
+
 	size_t readBytes(size_t count, uint8_t*  data);
 	void delay(unsigned long ms);
 	int dateTimeToMinutesInWeek(const DateTime& dt);

@@ -28,8 +28,6 @@ public:
 	static void setError(Error::Number num);
 	static void setError(Error::Description num);
 
-	//static void update(const DateTime& dt);
-
 	static void log();
 	static void log(Error::Number num);
 	static void log(Error::Description error);

@@ -46,20 +46,24 @@ void Message::send() const
 	rawBytes[1] = static_cast<uint8_t>(this->m_type);
 	rawBytes[2] = static_cast<uint8_t>(this->m_action);
 	rawBytes[3] = static_cast<uint8_t>(this->m_info);
-	rawBytes[5] = this->m_size;
+	rawBytes[4] = this->m_size;
 
-	CRC32 crc;
-	crc.update(rawBytes, NETWORK_SIZE);
-	if (m_size > 0)
-		crc.update(this->m_data, this->m_size);
-	uint32_t crc32 = crc.finalize();
+	uint32_t crc32 = CRC32::calculate(rawBytes, NETWORK_SIZE);
 	crc32 = htonl(crc32);
 
+	uint32_t dataCrc = 0;
+	if (m_size > 0)
+	{
+		dataCrc = CRC32::calculate(this->m_data, this->m_size);
+		dataCrc = htonl(dataCrc);
+	}
 	Serial.write((uint8_t*)(&crc32), sizeof(crc32));
 	Serial.write(rawBytes, sizeof(rawBytes));
 	if (m_size > 0)
+	{
+		Serial.write((uint8_t*)(&dataCrc), sizeof(dataCrc));
 		Serial.write(this->m_data, this->m_size);
-
+	}
 }
 
 void Message::receive()
@@ -76,7 +80,12 @@ void Message::receive()
 	if (Error::hasError())
 		return;
 
-	//we hope that the received message is valid 
+	if (CRC32::calculate(rawBytes, NETWORK_SIZE) != receivedCrc32)
+	{
+		Error::setError(Error::Number::invalidCrc);
+		return;
+	}
+
 	if (rawBytes[0] != Message::PROTOCOL_VERSION)
 	{
 		Error::setError(Error::Number::invalidMessageProtocol);
@@ -90,24 +99,24 @@ void Message::receive()
 
 	delete[] m_data;
 	m_data = nullptr;
+
 	if (m_size > 0)
 	{
 		m_data = new uint8_t[m_size];
+		uint32_t dataCrc;
+		Utility::readBytes(sizeof(dataCrc), (uint8_t*)&dataCrc);
+		if (Error::hasError())
+			return;
+		dataCrc = ntohl(dataCrc);
 
 		Utility::readBytes(m_size, m_data);
 		if (Error::hasError())
 			return;
-	}
 
-	CRC32 crc;
-	crc.update(rawBytes, NETWORK_SIZE);
-	if (m_size > 0)
-		crc.update(this->m_data, this->m_size);
-	uint32_t crc32 = crc.finalize();
-
-	if (crc32 != receivedCrc32)
-	{
-		Error::setError(Error::Number::invalidCrc);
-		return;
+		if (CRC32::calculate(m_data, m_size) != dataCrc)
+		{
+			Error::setError(Error::Number::invalidCrc);
+			return;
+		}
 	}
 }

@@ -11,7 +11,7 @@ protected:
     enum HBridgeState:uint8_t
     {
         close   = HIGH, //set this hbridge to close the valve
-        open    = LOW   //---------||-------- open the valve
+        open    = LOW   //set this hbridge to open the valve
     };
 
 public:
@@ -23,13 +23,13 @@ protected:
     
     uint8_t m_valveCount;
     Valve m_valves[MAX_VALVES];
-    uint8_t m_hBridgeState;
+	HBridgeState m_hBridgeState;
     
     bool m_isHbridgeSet;
     bool m_safeToChangeValves;//set to true after close all valves is called
 
     bool setHBridge(HBridgeState state);
-    int8_t getHBridgeState();
+	HBridgeState getHBridgeState();
     
 public:
     ValveController();
