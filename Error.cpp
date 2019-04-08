@@ -62,10 +62,9 @@ void Error::log(Error::Description err)
 Message* Error::toMessage()
 {
 	Message* msg = new Message(Message::Type::command, Message::Action::error, Message::Info::none, sizeof(Error::Description::number) + Utility::DATE_TIME_NETWORK_SIZE);
-	
-	(*msg)[0] = (uint8_t)Error::currentError.number;
 
-	Utility::dateTimeToBytes(Error::currentError.time, *msg, 1);
+	Utility::dateTimeToBytes(Error::currentError.time, *msg);
+	(*msg)[Utility::DATE_TIME_NETWORK_SIZE] = (uint8_t)Error::currentError.number;
 	return msg;
 }
 
