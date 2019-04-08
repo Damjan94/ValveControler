@@ -152,11 +152,17 @@ void NetworkManager::update(const DateTime& dt)
 					doneSendingError.send();
 					break;
 				}
-				case Message::Action::sleepTime:
+				case Message::Action::sleepTimeShort:
 				{
-					Message sleepMessage(Message::Type::command, Message::Action::sleepTime, Message::Info::none, Utility::DATE_TIME_NETWORK_SIZE*2);
-					Utility::dateTimeToBytes(m_shortSleepTime, sleepMessage, 0);
-					Utility::dateTimeToBytes(m_longSleepTime, sleepMessage, Utility::DATE_TIME_NETWORK_SIZE);
+					Message sleepMessage(Message::Type::command, Message::Action::sleepTimeShort, Message::Info::none, Utility::DATE_TIME_NETWORK_SIZE);
+					Utility::dateTimeToBytes(m_shortSleepTime, sleepMessage);
+					sleepMessage.send();
+					break;
+				}
+				case Message::Action::sleepTimeLong:
+				{
+					Message sleepMessage(Message::Type::command, Message::Action::sleepTimeLong, Message::Info::none, Utility::DATE_TIME_NETWORK_SIZE);
+					Utility::dateTimeToBytes(m_longSleepTime, sleepMessage);
 					sleepMessage.send();
 					break;
 				}

@@ -21,7 +21,8 @@ public:
 		temperatureFloat	= 0x4,
 		hBridgePin			= 0x5,
 		error				= 0x6,
-		sleepTime			= 0x7
+		sleepTimeShort		= 0x7,
+		sleepTimeLong		= 0x8
 	};
 	enum class Info : uint8_t
 	{
