@@ -21,7 +21,7 @@ Valve::Valve(int8_t valveNumber, uint8_t hour, uint8_t minute, uint8_t daysOn, u
 }
 
 
-bool Valve::isValvePinValid()
+bool Valve::isValvePinValid() const
 {
     return m_data.valveNumber >= LOWEST_VALID_PIN_FOR_VALVE && m_data.valveNumber <= HIGHEST_VALID_PIN_FOR_VALVE;
 

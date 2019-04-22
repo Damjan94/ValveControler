@@ -103,6 +103,7 @@ void loop()
 		++connectedDeviceErrorCount;
 		if (connectedDeviceErrorCount > 3)
 		{
+			Error::log(Error::Number::startedIgnoringTheDevice);
 			ignoreTheDevice = true;
 		}
 	}

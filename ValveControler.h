@@ -17,6 +17,7 @@ protected:
 public:
     const static long RELAY_SETTLE_TIME = 10;
 	const static int MAX_VALVES = 50;
+	const static uint8_t AVAILABLE_PINS = 8;
 protected:
 
     int8_t m_hBridgePin[2];
@@ -27,6 +28,7 @@ protected:
     
     bool m_isHbridgeSet;
     bool m_safeToChangeValves;//set to true after close all valves is called
+	bool m_usedPins[AVAILABLE_PINS];
 
     bool setHBridge(HBridgeState state);
 	HBridgeState getHBridgeState();

@@ -2,7 +2,7 @@
 #include <limits.h>
 #include "Utility.h"
 
-ValveController::ValveController() : m_hBridgePin{4, 13}//shouldn't this be set in the startup function?
+ValveController::ValveController() : m_hBridgePin{ 4, 13 }, m_usedPins{false, false, false, false, false, false, false, false}//shouldn't this be set in the startup function?
 {
     m_isHbridgeSet = true;
     pinMode(m_hBridgePin[0], OUTPUT);
@@ -89,10 +89,10 @@ DateTime ValveController::getSoonestActionDate(const DateTime& dt) const
 
 void ValveController::closeAllValves()
 {
-    //TODO fix this code. 5 and 12 are the valid valve pins
-	//TODO are these pins set to output mode?
     for(int i = 5; i <= 12; ++i)
     {
+		if (!m_usedPins[i - 5])
+			continue;
         setHBridge(HBridgeState::close);
         digitalWrite(i, LOW);
         Utility::delay(RELAY_SETTLE_TIME);
@@ -133,6 +133,8 @@ void ValveController::addValve(const Valve& valve)
 		closeAllValves();
     if(m_valveCount+1 >= MAX_VALVES)
         return; //TODO some error handleing would be nice
+	if (valve.isValvePinValid())
+		m_usedPins[valve.getValveNumber - 5] = true;
     m_valves[m_valveCount++] = valve;
 }
 
@@ -140,4 +142,5 @@ void ValveController::clear()
 {
     closeAllValves();
     m_valveCount = 0;
+	memset(m_usedPins, 0, sizeof(m_usedPins)/AVAILABLE_PINS);//sets all of the used pins to false
 }

@@ -29,8 +29,7 @@ private:
     const static int8_t INVALID_PIN = -1;
 
     void switchValve();
-	
-    bool isValvePinValid();
+
     void validate();
 
     int checkTurnOnTime(const DateTime& dt) const;
@@ -51,6 +50,7 @@ public:
     bool checkTurnOn(const DateTime& dt) const;
     bool checkTurnOff(const DateTime& dt) const;
     bool isOn() const;
+	bool isValvePinValid() const;
     int getValveNumber() const;
 
 	Message* toMessage() const;

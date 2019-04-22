@@ -8,10 +8,10 @@ public:
 	enum class Number : uint8_t
 	{
 		none							= 0x0,
-		startedIgnoringTheDevice		= 0x2,
-		invalidCrc						= 0x3,
-		couldNotReadAllBytes			= 0x4,
-		tooManyValvesToReceive			= 0x5,
+		startedIgnoringTheDevice		= 0x1,
+		invalidCrc						= 0x2,
+		couldNotReadAllBytes			= 0x3,
+		tooManyValvesToReceive			= 0x4,
 		invalidMessageProtocol			= 0xFF
 	};
 	struct Description
